@@ -39,12 +39,12 @@ namespace prayground {
         struct Object {
             std::shared_ptr<Shape> shape;
             std::vector<std::shared_ptr<Material>> materials;
-            ShapeInstance instance;
+            std::shared_ptr<ShapeInstance> instance;
         private:
             void free() {
                 shape->free();
                 for (auto m : materials) m->free();
-                instance.free();
+                if (instance) instance->free();
             }
         };
 
@@ -52,26 +52,26 @@ namespace prayground {
             std::shared_ptr<Shape> shape;
             std::vector<std::shared_ptr<Material>> materials;
 
-            Instance instance;
+            std::shared_ptr<Instance> instance;
             GeometryAccel gas;
             Transform matrix_transform;
         private:
             void free() {
                 shape->free();
                 for (auto m : materials) m->free();
-                instance.free();
+                if (instance) instance->free();
             }
         };
 
         struct Light {
             std::shared_ptr<Shape> shape;
             std::vector<std::shared_ptr<AreaEmitter>> emitters;
-            ShapeInstance instance;
+            std::shared_ptr<ShapeInstance> instance;
         private:
             void free() {
                 shape->free();
                 for (auto e : emitters) e->free();
-                instance.free();
+                if (instance) instance->free();
             }
         };
 
@@ -79,13 +79,14 @@ namespace prayground {
             std::shared_ptr<Shape> shape;
             std::vector<std::shared_ptr<AreaEmitter>> emitters;
 
-            Instance instance;
+            std::shared_ptr<Instance> instance;
             GeometryAccel gas;
             Transform matrix_transform;
         private:
             void free() {
                 shape->free();
                 for (auto e : emitters) e->free();
+                if (instance) instance->free();
                 gas.free();
             }
         };
@@ -246,7 +247,7 @@ namespace prayground {
         AccelSettings m_ias_settings;
 
         SBT                         m_sbt;          // Shader binding table
-        uint32_t                    m_current_sbt_id;
+        uint32_t                    m_current_sbt_id {0u};
         InstanceAccel               m_accel;        // m_accel[0] -> Top level
         CUDABuffer<void>            d_params;       // Data region on device side for OptixLaunchParams
 
@@ -468,12 +469,12 @@ namespace prayground {
         std::array<ProgramGroup, _NRay>& hitgroup_prgs, const Matrix4f& transform, 
         const AccelSettings& gas_settings)
     {
-        ShapeInstance instance{ shape->type(), shape, transform };
+        auto instance = std::make_shared<ShapeInstance>(shape->type(), shape, transform);
 
         if (gas_settings.allow_accel_compaction)
-            instance.allowCompaction();
+            instance->allowCompaction();
         if (gas_settings.allow_accel_update)
-            instance.allowUpdate();
+            instance->allowUpdate();
 
         m_objects.emplace_back(Item<Object>{ name, m_current_sbt_id, std::make_shared<Object>( shape, materials, instance ) });
 
@@ -494,12 +495,12 @@ namespace prayground {
     {
         ASSERT(hitgroup_prgs.size() == _NRay, "The number of hitgroup programs must be same with the number of ray types.");
 
-        ShapeInstance instance{ shape->type(), shape, transform };
+        auto instance = std::make_shared<ShapeInstance>(shape->type(), shape, transform);
 
         if (gas_settings.allow_accel_compaction)
-            instance.allowCompaction();
+            instance->allowCompaction();
         if (gas_settings.allow_accel_update) {
-            instance.allowUpdate();
+            instance->allowUpdate();
         }
 
         m_objects.emplace_back(Item<Object>{name, m_current_sbt_id, std::make_shared<Object>( shape, materials, instance )});
@@ -544,7 +545,7 @@ namespace prayground {
         auto& obj_val = obj.value();
 
         // Update object's transform matrix.
-        obj_val.value->instance.setTransform(transform);
+        obj_val.value->instance->setTransform(transform);
     }
 
     template<DerivedFromCamera _CamT, uint32_t _NRay>
@@ -585,7 +586,7 @@ namespace prayground {
 
         auto& obj_val = obj.value();
 
-        obj_val.value->instance.updateAccel(ctx, stream);
+        obj_val.value->instance->updateAccel(ctx, stream);
     }
 
     template<DerivedFromCamera _CamT, uint32_t _NRay>
@@ -626,7 +627,7 @@ namespace prayground {
         std::array<ProgramGroup, _NRay>& hitgroup_prgs, const Matrix4f& transform, 
         const AccelSettings& gas_settings)
     {
-        ShapeInstance instance{ shape->type(), shape, transform };
+        auto instance = std::make_shared<ShapeInstance>(shape->type(), shape, transform);
         m_lights.emplace_back(Item<Light>{ name, m_current_sbt_id, std::make_shared<Light>( shape, emitters, instance ) });
 
         // Add hitgroup record data
@@ -648,7 +649,7 @@ namespace prayground {
     {
         ASSERT(hitgroup_prgs.size() == _NRay, "The number of hitgroup programs must be same with the number of ray types.");
 
-        ShapeInstance instance{ shape->type(), shape, transform };
+        auto instance = std::make_shared<ShapeInstance>(shape->type(), shape, transform);
         m_lights.emplace_back(Item<Light>{name, m_current_sbt_id, std::make_shared<Light>( shape, emitters, instance )});
 
         // Add hitgroup record data
@@ -677,7 +678,8 @@ namespace prayground {
         auto& obj_val = obj.value();
 
         // Duplicate object with different transform matrix.
-        addLight(name, Light{ obj_val.value->shape, obj_val.value->emitters, transform });
+        auto instance = std::make_shared<ShapeInstance>(obj_val.value->shape->type(), obj_val.value->shape, transform);
+        m_lights.emplace_back(Item<Light>{ name, obj_val.ID, std::make_shared<Light>(obj_val.value->shape, obj_val.value->emitters, instance) });
     }
 
     template<DerivedFromCamera _CamT, uint32_t _NRay>
@@ -693,7 +695,7 @@ namespace prayground {
         auto& obj_val = obj.value();
 
         // Update object's transform matrix.
-        obj_val.value->instance.setTransform(transform);
+        obj_val.value->instance->setTransform(transform);
     }
 
     template<DerivedFromCamera _CamT, uint32_t _NRay>
@@ -732,7 +734,7 @@ namespace prayground {
 
         auto& obj_val = obj.value();
 
-        obj_val.value->instance.updateAccel(ctx, stream);
+        obj_val.value->instance->updateAccel(ctx, stream);
     }
 
     template<DerivedFromCamera _CamT, uint32_t _NRay>
@@ -786,7 +788,7 @@ namespace prayground {
         matrix_transform.setMatrixMotionTransform(begin_transform, end_transform);
         matrix_transform.setNumKey(num_key);
 
-        m_moving_objects.emplace_back(Item<MovingObject>{ name, m_current_sbt_id, std::make_shared<MovingObject>(shape, materials, Instance{}, gas, matrix_transform) });
+        m_moving_objects.emplace_back(Item<MovingObject>{ name, m_current_sbt_id, std::make_shared<MovingObject>(shape, materials, std::make_shared<Instance>(), gas, matrix_transform) });
 
         // Add hitgroup record data
         for (const auto& m : materials)
@@ -813,7 +815,7 @@ namespace prayground {
         matrix_transform.setMatrixMotionTransform(begin_transform, end_transform);
         matrix_transform.setNumKey(num_key);
 
-        m_moving_objects.emplace_back(Item<MovingObject>{ name, m_current_sbt_id, std::make_shared<MovingObject>(shape, materials, Instance{}, gas, matrix_transform) });
+        m_moving_objects.emplace_back(Item<MovingObject>{ name, m_current_sbt_id, std::make_shared<MovingObject>(shape, materials, std::make_shared<Instance>(), gas, matrix_transform) });
 
         for ([[maybe_unused]] const auto& m : materials) {
             std::array<pgHitgroupRecord, _NRay> hitgroup_records;
@@ -911,7 +913,7 @@ namespace prayground {
         matrix_transform.setMatrixMotionTransform(begin_transform, end_transform);
         matrix_transform.setNumKey(num_key);
 
-        m_moving_lights.emplace_back(Item<MovingLight>{ name, m_current_sbt_id, std::make_shared<MovingLight>(shape, emitters, Instance{}, gas, matrix_transform) });
+        m_moving_lights.emplace_back(Item<MovingLight>{ name, m_current_sbt_id, std::make_shared<MovingLight>(shape, emitters, std::make_shared<Instance>(), gas, matrix_transform) });
 
         // Add hitgroup record data
         for (const auto& e : emitters) {
@@ -935,7 +937,7 @@ namespace prayground {
         matrix_transform.setMatrixMotionTransform(begin_transform, end_transform);
         matrix_transform.setNumKey(num_key);
 
-        m_moving_lights.emplace_back(Item<MovingLight>{ name, m_current_sbt_id, std::make_shared<MovingLight>(shape, emitters, Instance{}, gas, matrix_transform) });
+        m_moving_lights.emplace_back(Item<MovingLight>{ name, m_current_sbt_id, std::make_shared<MovingLight>(shape, emitters, std::make_shared<Instance>(), gas, matrix_transform) });
 
         for ([[maybe_unused]] const auto& e : emitters) {
             std::array<pgHitgroupRecord, _NRay> hitgroup_records;
@@ -1071,12 +1073,12 @@ namespace prayground {
         auto createGas = [&](auto object, uint32_t ID) -> void
         {
             // Build geometry accel
-            object->instance.allowCompaction();
-            object->instance.buildAccel(ctx, stream);
-            object->instance.setSBTOffset(ID);
-            object->instance.setId(instance_id);
+            object->instance->allowCompaction();
+            object->instance->buildAccel(ctx, stream);
+            object->instance->setSBTOffset(ID);
+            object->instance->setId(instance_id);
 
-            m_accel.addInstance(object->instance);
+            m_accel.addInstance(*object->instance);
             instance_id++;
         };
 
@@ -1093,19 +1095,23 @@ namespace prayground {
             moving_object->matrix_transform.buildHandle(ctx);
 
             // Set matrix transform to instance
-            moving_object->instance.setSBTOffset(ID);
-            moving_object->instance.setId(instance_id);
-            moving_object->instance.setTraversableHandle(moving_object->matrix_transform.handle());
+            moving_object->instance->setSBTOffset(ID);
+            moving_object->instance->setId(instance_id);
+            moving_object->instance->setTraversableHandle(moving_object->matrix_transform.handle());
 
-            m_accel.addInstance(moving_object->instance);
+            m_accel.addInstance(*moving_object->instance);
 
             instance_id++;
         };
 
-        for (auto& obj : m_objects)        createGas(obj.value, obj.ID);
-        for (auto& obj : m_lights)         createGas(obj.value, obj.ID);
-        for (auto& obj : m_moving_objects) createMovingGas(obj.value, obj.ID);
-        for (auto& obj : m_moving_lights)  createMovingGas(obj.value, obj.ID);
+        for (auto& obj : m_objects)        
+            createGas(obj.value, obj.ID);
+        for (auto& obj : m_lights)         
+            createGas(obj.value, obj.ID);
+        for (auto& obj : m_moving_objects) 
+            createMovingGas(obj.value, obj.ID);
+        for (auto& obj : m_moving_lights)  
+            createMovingGas(obj.value, obj.ID);
 
         m_accel.build(ctx, stream);
     }

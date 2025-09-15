@@ -75,7 +75,7 @@ namespace prayground {
         float nt = dielectric->ior;
         float cosine = dot(wo, shading.n);
         // Check where the ray is going outside or inside
-        bool into = cosine < 0;
+        bool into = cosine > 0;
         Vec3f outward_normal = into ? shading.n : -shading.n;
 
         // Swap IOR based on ray location
@@ -90,9 +90,9 @@ namespace prayground {
         float reflect_prob = fresnel(cosine, ni, nt);
         // Get out going direction of the ray
         if (cannot_refract || reflect_prob > rnd(seed))
-            return reflect(wo, outward_normal);
+            return reflect(-wo, outward_normal);
         else
-            return refract(wo, outward_normal, cosine, ni, nt);
+            return refract(-wo, outward_normal, cosine, ni, nt);
     }
 
     // ----------------------------------------------------------------------------------------
@@ -103,8 +103,9 @@ namespace prayground {
         const Vec3f& wo, Shading& shading, uint32_t& seed
     )
     {
-        if (diffuse->twosided)
+        if (diffuse->twosided) {
             shading.n = faceforward(shading.n, wo, shading.n);
+        }
 
         // Importance sampling in cosine direction on hemisphere
         Vec2f u = UniformSampler::get2D(seed);

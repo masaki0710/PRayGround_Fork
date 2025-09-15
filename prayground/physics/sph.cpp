@@ -1,4 +1,5 @@
 #include "sph.h"
+#include <format>
 #include <prayground/physics/cuda/sph.cuh>
 
 namespace prayground {
@@ -73,19 +74,21 @@ namespace prayground {
         // The device buffer will be updated by the kernel function of SPH. 
         if (!d_data)
             this->copyToDevice();
-        updateParticleAABB((SPHParticles::Data*)d_data, m_num_particles, d_aabb.deviceData());
-        CUDA_SYNC_CHECK();
+         updateParticleAABB((SPHParticles::Data*)d_data, m_num_particles, d_aabb.deviceData());
+         CUDA_SYNC_CHECK();
 
         d_aabb_buffer = d_aabb.devicePtr();
 
         bi.type = static_cast<OptixBuildInputType>(type());
         bi.customPrimitiveArray.aabbBuffers = &d_aabb_buffer;
+        bi.customPrimitiveArray.strideInBytes = sizeof(OptixAabb);
         bi.customPrimitiveArray.numPrimitives = static_cast<uint32_t>(m_num_particles);
         bi.customPrimitiveArray.flags = input_flags;
         bi.customPrimitiveArray.numSbtRecords = 1u;
         bi.customPrimitiveArray.sbtIndexOffsetBuffer = d_sbt_indices.devicePtr();
         bi.customPrimitiveArray.sbtIndexOffsetSizeInBytes = sizeof(uint32_t);
         bi.customPrimitiveArray.sbtIndexOffsetStrideInBytes = sizeof(uint32_t);
+        bi.customPrimitiveArray.primitiveIndexOffset = 0;
 
         return bi;
     }

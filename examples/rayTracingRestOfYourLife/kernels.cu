@@ -55,7 +55,7 @@ static __forceinline__ __device__ float powerHeuristic(const float pdf1, const f
 #define NEE 0
 #define MIS 1
 #define PT 0
-extern "C" __device__ void __raygen__pinhole()
+extern "C" GLOBAL void __raygen__pinhole()
 {
     const RaygenData* raygen = reinterpret_cast<RaygenData*>(optixGetSbtDataPointer());
 
@@ -102,29 +102,31 @@ extern "C" __device__ void __raygen__pinhole()
                 break;
             }
 
+            SurfaceInfo surface_info = si.surface_info[0];
+
             // Get emission from area emitter
-            if ( si.surface_info.type == SurfaceType::AreaEmitter )
+            if ( surface_info.type == SurfaceType::AreaEmitter )
             {
                 // Evaluating emission from emitter
                 optixDirectCall<void, SurfaceInteraction*, void*>(
-                    si.surface_info.callable_id.bsdf, &si, si.surface_info.data);
+                    surface_info.callable_id.bsdf, &si, surface_info.data);
                 result += si.emission * throughput;
                 if (si.trace_terminate)
                     break;
             }
             // Specular sampling
-            else if (+(si.surface_info.type & SurfaceType::Delta))
+            else if (+(surface_info.type & SurfaceType::Delta))
             {
                 Vec3f scattered = optixDirectCall<Vec3f, SurfaceInteraction*, void*>(
-                    si.surface_info.callable_id.sample, &si, si.surface_info.data);
+                    surface_info.callable_id.sample, &si, surface_info.data);
                 si.wi = scattered;
 
                 Vec3f bsdf = optixContinuationCall<Vec3f, SurfaceInteraction*, void*, const Vec3f&>(
-                    si.surface_info.callable_id.bsdf, &si, si.surface_info.data, Vec3f{});
+                    surface_info.callable_id.bsdf, &si, surface_info.data, Vec3f{});
                 throughput *= bsdf;
             }
             // Rough surface sampling with applying MIS
-            else if ( +(si.surface_info.type & (SurfaceType::Rough | SurfaceType::Diffuse)) )
+            else if ( +(surface_info.type & (SurfaceType::Rough | SurfaceType::Diffuse)) )
             {
                 uint32_t seed = si.seed;
                 AreaEmitterInfo light;
@@ -136,12 +138,12 @@ extern "C" __device__ void __raygen__pinhole()
                 float pdf = 0.0f;
                 // BSDF sampling
                 Vec3f scattered = optixDirectCall<Vec3f, SurfaceInteraction*, void*>(
-                    si.surface_info.callable_id.sample, &si, si.surface_info.data);
+                    surface_info.callable_id.sample, &si, surface_info.data);
 #if NEE
                 float weight = 0.0f;
 
                 float bsdf_pdf = optixDirectCall<float, SurfaceInteraction*, void*, const Vec3f&>(
-                    si.surface_info.callable_id.pdf, &si, si.surface_info.data, scattered);
+                    surface_info.callable_id.pdf, &si, surface_info.data, scattered);
 
                 si.wi = scattered;
                 pdf = bsdf_pdf;
@@ -167,7 +169,7 @@ extern "C" __device__ void __raygen__pinhole()
                         {
                             const Vec3f unit_wi = normalize(to_light);
                             const Vec3f bsdf = optixContinuationCall<Vec3f, SurfaceInteraction*, void*, const Vec3f&>(
-                                si.surface_info.callable_id.bsdf, &si, si.surface_info.data, unit_wi);
+                                surface_info.callable_id.bsdf, &si, surface_info.data, unit_wi);
 
                             // Calculate MIS weight
                             SurfaceInteraction light_si;
@@ -187,10 +189,10 @@ extern "C" __device__ void __raygen__pinhole()
                     {
                         si.wi = scattered;
                         const Vec3f bsdf = optixContinuationCall<Vec3f, SurfaceInteraction*, void*, const Vec3f&>(
-                            si.surface_info.callable_id.bsdf, &si, si.surface_info.data, si.wi);
+                            surface_info.callable_id.bsdf, &si, surface_info.data, si.wi);
 
                         float bsdf_pdf = optixDirectCall<float, SurfaceInteraction*, void*, const Vec3f&>(
-                            si.surface_info.callable_id.pdf, &si, si.surface_info.data, si.wi);
+                            surface_info.callable_id.pdf, &si, surface_info.data, si.wi);
 
                         throughput *= bsdf / bsdf_pdf;
                     }
@@ -217,10 +219,10 @@ extern "C" __device__ void __raygen__pinhole()
                         {
                             const Vec3f unit_wi = normalize(to_light);
                             const Vec3f bsdf = optixContinuationCall<Vec3f, SurfaceInteraction*, void*, const Vec3f&>(
-                                si.surface_info.callable_id.bsdf, &si, si.surface_info.data, unit_wi);
+                                surface_info.callable_id.bsdf, &si, surface_info.data, unit_wi);
 
                             float bsdf_pdf = optixDirectCall<float, SurfaceInteraction*, void*, const Vec3f&>(
-                                si.surface_info.callable_id.pdf, &si, si.surface_info.data, unit_wi);
+                                surface_info.callable_id.pdf, &si, surface_info.data, unit_wi);
 
                             // convert unit of bsdf_pdf from [sr^-1] to [m^-2]
                             const float cos_theta = dot(-unit_wi, li.n);
@@ -237,7 +239,7 @@ extern "C" __device__ void __raygen__pinhole()
                             light_si.surface_info = light.surface_info;
 
                             optixDirectCall<void, SurfaceInteraction*, void*>(
-                                light_si.surface_info.callable_id.bsdf, &light_si, light_si.surface_info.data);
+                                light_si.surface_info->callable_id.bsdf, &light_si, light_si.surface_info->data);
                             
                             result += weight * light_si.emission * bsdf * throughput / li.pdf;
                         }
@@ -247,10 +249,10 @@ extern "C" __device__ void __raygen__pinhole()
                     {
                         si.wi = scattered;
                         const Vec3f bsdf = optixContinuationCall<Vec3f, SurfaceInteraction*, void*, const Vec3f&>(
-                            si.surface_info.callable_id.bsdf, &si, si.surface_info.data, si.wi);
+                            surface_info.callable_id.bsdf, &si, surface_info.data, si.wi);
                         
                         float bsdf_pdf = optixDirectCall<float, SurfaceInteraction*, void*, const Vec3f&>(
-                            si.surface_info.callable_id.pdf, &si, si.surface_info.data, si.wi);
+                            surface_info.callable_id.pdf, &si, surface_info.data, si.wi);
                         const float cos_theta = dot(-si.wi, li.n);
                         const float sample_bsdf_pdf = bsdf_pdf * pow2(dist_to_light) / cos_theta;
 
@@ -266,11 +268,11 @@ extern "C" __device__ void __raygen__pinhole()
 
                 // Evaluate PDF depends on BSDF
                 float bsdf_pdf = optixDirectCall<float, SurfaceInteraction*, void*, const Vec3f&>(
-                    si.surface_info.callable_id.pdf, &si, si.surface_info.data, si.wi);
+                    surface_info.callable_id.pdf, &si, surface_info.data, si.wi);
 
                 // Evaluate BSDF
                 Vec3f bsdf = optixContinuationCall<Vec3f, SurfaceInteraction*, void*, const Vec3f&>(
-                    si.surface_info.callable_id.bsdf, &si, si.surface_info.data, si.wi);
+                    surface_info.callable_id.bsdf, &si, surface_info.data, si.wi);
 
                 throughput *= bsdf / bsdf_pdf;
 #endif
@@ -307,7 +309,7 @@ extern "C" __device__ void __raygen__pinhole()
 }
 
 // Miss ----------------------------------------------------------------
-extern "C" __device__ void __miss__envmap()
+extern "C" GLOBAL void __miss__envmap()
 {
     const auto* data = (MissData*)optixGetSbtDataPointer();
     const auto* env = (EnvironmentEmitter::Data*)data->env_data;
@@ -331,12 +333,12 @@ extern "C" __device__ void __miss__envmap()
     const float v = 1.0f - (theta + math::pi / 2.0f) / math::pi;
     si->shading.uv = Vec2f(u, v);
     si->trace_terminate = true;
-    si->surface_info.type = SurfaceType::None;
+    si->surface_info->type = SurfaceType::None;
     si->emission = optixDirectCall<Vec3f, SurfaceInteraction*, void*>(
         env->texture.prg_id, si, env->texture.data);
 }
 
-extern "C" __device__ void __miss__shadow()
+extern "C" GLOBAL void __miss__shadow()
 {
     setPayload<0>(0);
 }
@@ -365,7 +367,7 @@ static __forceinline__ __device__ bool hitPlane(
     return false;
 }
 
-extern "C" __device__ void __intersection__plane()
+extern "C" GLOBAL void __intersection__plane()
 {
     const auto* data = (HitgroupData*)optixGetSbtDataPointer();
     const auto* plane = (Plane::Data*)data->shape_data;
@@ -386,7 +388,7 @@ extern "C" __device__ void __intersection__plane()
         optixReportIntersection(t, 0, Vec2f_as_ints(uv));
 }
 
-extern "C" __device__ void __closesthit__plane()
+extern "C" GLOBAL void __closesthit__plane()
 {
     const auto* data = (HitgroupData*)optixGetSbtDataPointer();
 
@@ -409,7 +411,7 @@ extern "C" __device__ void __closesthit__plane()
     si->shading.dpdv = optixTransformNormalFromObjectToWorldSpace({0.0f, 0.0f, 1.0f});
 }
 
-extern "C" __device__ void __direct_callable__sample_light_plane(
+extern "C" DEVICE void __direct_callable__sample_light_plane(
     const AreaEmitterInfo& area_info, const Vec3f& p, LightInteraction& li, uint32_t& seed)
 {
     const auto* plane = (Plane::Data*)area_info.shape_data;
@@ -436,7 +438,7 @@ extern "C" __device__ void __direct_callable__sample_light_plane(
     li.pdf = (t * t) / (li.area * cos_theta);
 }
 
-extern "C" __device__ float __continuation_callable__pdf_light_plane(
+extern "C" DEVICE float __continuation_callable__pdf_light_plane(
     const AreaEmitterInfo& area_info, const Vec3f& p, const Vec3f& wi, LightInteraction& li)
 {
     const auto* plane = (Plane::Data*)area_info.shape_data;
@@ -487,7 +489,7 @@ static __forceinline__ __device__ bool hitSphere(
     return true;
 }
 
-extern "C" __device__ void __intersection__sphere() 
+extern "C" GLOBAL void __intersection__sphere() 
 {
     const auto* data = (HitgroupData*)optixGetSbtDataPointer();
     const auto* sphere = (Sphere::Data*)data->shape_data;
@@ -523,7 +525,7 @@ extern "C" __device__ void __intersection__sphere()
     }
 }
 
-extern "C" __device__ void __closesthit__sphere() {
+extern "C" GLOBAL void __closesthit__sphere() {
     const auto* data = (HitgroupData*)optixGetSbtDataPointer();
 
     Ray ray = getWorldRay();
@@ -549,7 +551,7 @@ extern "C" __device__ void __closesthit__sphere() {
     si->shading.dpdv = normalize(optixTransformVectorFromObjectToWorldSpace(dpdv.toCUVec()));
 }
 
-extern "C" __device__ float __continuation_callable__pdf_light_sphere(
+extern "C" DEVICE float __continuation_callable__pdf_light_sphere(
     const AreaEmitterInfo& area_info, const Vec3f& p, const Vec3f& wi)
 {
     const auto* sphere = (Sphere::Data*)area_info.shape_data;
@@ -567,7 +569,7 @@ extern "C" __device__ float __continuation_callable__pdf_light_sphere(
     return 1.0f / solid_angle;
 }
 
-extern "C" __device__ Vec3f __direct_callable__sample_light_sphere(
+extern "C" DEVICE Vec3f __direct_callable__sample_light_sphere(
     const AreaEmitterInfo& area_info, const Vec3f& p, uint32_t& seed)
 {
     const auto* sphere = (Sphere::Data*)area_info.shape_data;
@@ -582,7 +584,7 @@ extern "C" __device__ Vec3f __direct_callable__sample_light_sphere(
 }
 
 // Triangle mesh -------------------------------------------------------------------------------
-extern "C" __device__ void __closesthit__mesh()
+extern "C" GLOBAL void __closesthit__mesh()
 {
     const auto* data = (HitgroupData*)optixGetSbtDataPointer();
     const auto* mesh = (TriangleMesh::Data*)data->shape_data;
@@ -642,7 +644,7 @@ extern "C" __device__ void __closesthit__mesh()
     si->shading.dpdv = normalize(optixTransformNormalFromObjectToWorldSpace(dpdv.toCUVec()));
 }
 
-extern "C" __device__ void __closesthit__shadow()
+extern "C" GLOBAL void __closesthit__shadow()
 {
     // Hit to surface
     setPayload<0>(1);
@@ -650,7 +652,7 @@ extern "C" __device__ void __closesthit__shadow()
 
 // Surfaces -------------------------------------------------------------------------------
 // Diffuse -----------------------------------------------------------------------------------------------
-extern "C" __device__ Vec3f __direct_callable__sample_diffuse(SurfaceInteraction* si, void* mat_data) {
+extern "C" DEVICE Vec3f __direct_callable__sample_diffuse(SurfaceInteraction* si, void* mat_data) {
     const auto* diffuse = (Diffuse::Data*)mat_data;
 
     if (diffuse->twosided)
@@ -666,7 +668,7 @@ extern "C" __device__ Vec3f __direct_callable__sample_diffuse(SurfaceInteraction
     return normalize(wi);
 }
 
-extern "C" __device__ Vec3f __continuation_callable__bsdf_diffuse(SurfaceInteraction* si, void* mat_data, const Vec3f& wi)
+extern "C" DEVICE Vec3f __continuation_callable__bsdf_diffuse(SurfaceInteraction* si, void* mat_data, const Vec3f& wi)
 {
     const auto* diffuse = (Diffuse::Data*)mat_data;
     const Vec3f albedo = optixDirectCall<Vec3f, SurfaceInteraction*, void*>(
@@ -677,14 +679,14 @@ extern "C" __device__ Vec3f __continuation_callable__bsdf_diffuse(SurfaceInterac
     return albedo * cosine * math::inv_pi;
 }
 
-extern "C" __device__ float __direct_callable__pdf_diffuse(SurfaceInteraction* si, void* mat_data, const Vec3f& wi)
+extern "C" DEVICE float __direct_callable__pdf_diffuse(SurfaceInteraction* si, void* mat_data, const Vec3f& wi)
 {
     const float cosine = fmaxf(0.0f, dot(si->shading.n, wi));
     return cosine * math::inv_pi;
 }
 
 // Dielectric --------------------------------------------------------------------------------------------
-extern "C" __device__ Vec3f __direct_callable__sample_dielectric(SurfaceInteraction* si, void* mat_data) {
+extern "C" DEVICE Vec3f __direct_callable__sample_dielectric(SurfaceInteraction* si, void* mat_data) {
     const auto* dielectric = (Dielectric::Data*)mat_data;
 
     float ni = 1.000292f; // air
@@ -712,7 +714,7 @@ extern "C" __device__ Vec3f __direct_callable__sample_dielectric(SurfaceInteract
     return wi;
 }
 
-extern "C" __device__ Vec3f __continuation_callable__bsdf_dielectric(SurfaceInteraction* si, void* mat_data, const Vec3f& /* wi */)
+extern "C" DEVICE Vec3f __continuation_callable__bsdf_dielectric(SurfaceInteraction* si, void* mat_data, const Vec3f& /* wi */)
 {
     const auto* dielectric = (Dielectric::Data*)mat_data;
     si->emission = Vec3f(0.0f);
@@ -722,13 +724,13 @@ extern "C" __device__ Vec3f __continuation_callable__bsdf_dielectric(SurfaceInte
     return albedo;
 }
 
-extern "C" __device__ float __direct_callable__pdf_dielectric(SurfaceInteraction* si, void* mat_data, const Vec3f& /* wi */)
+extern "C" DEVICE float __direct_callable__pdf_dielectric(SurfaceInteraction* si, void* mat_data, const Vec3f& /* wi */)
 {
     return 1.0f;
 }
 
 // Conductor --------------------------------------------------------------------------------------------
-extern "C" __device__ Vec3f __direct_callable__sample_conductor(SurfaceInteraction* si, void* mat_data) 
+extern "C" DEVICE Vec3f __direct_callable__sample_conductor(SurfaceInteraction* si, void* mat_data)
 {
     const auto* conductor = (Conductor::Data*)mat_data;
     if (conductor->twosided)
@@ -738,7 +740,7 @@ extern "C" __device__ Vec3f __direct_callable__sample_conductor(SurfaceInteracti
     return reflect(si->wo, si->shading.n);
 }
 
-extern "C" __device__ Vec3f __continuation_callable__bsdf_conductor(SurfaceInteraction* si, void* mat_data, const Vec3f& /* wi */)
+extern "C" DEVICE Vec3f __continuation_callable__bsdf_conductor(SurfaceInteraction* si, void* mat_data, const Vec3f& /* wi */)
 {
     const auto* conductor = (Conductor::Data*)mat_data;
     si->emission = Vec3f(0.0f);
@@ -748,13 +750,13 @@ extern "C" __device__ Vec3f __continuation_callable__bsdf_conductor(SurfaceInter
     return albedo;
 }
 
-extern "C" __device__ float __direct_callable__pdf_conductor(SurfaceInteraction* si, void* mat_data, const Vec3f& /* wi */)
+extern "C" DEVICE float __direct_callable__pdf_conductor(SurfaceInteraction* si, void* mat_data, const Vec3f& /* wi */)
 {
     return 1.0f;
 }
 
 // Disney BRDF ------------------------------------------------------------------------------------------
-extern "C" __device__ Vec3f __direct_callable__sample_disney(SurfaceInteraction* si, void* mat_data)
+extern "C" DEVICE Vec3f __direct_callable__sample_disney(SurfaceInteraction* si, void* mat_data)
 {
     const auto* disney = (Disney::Data*)mat_data;
 
@@ -800,7 +802,7 @@ extern "C" __device__ Vec3f __direct_callable__sample_disney(SurfaceInteraction*
  * G : geometry function
  * D : normal distribution function
  */
-extern "C" __device__ Vec3f __continuation_callable__bsdf_disney(SurfaceInteraction* si, void* mat_data, const Vec3f& wi)
+extern "C" DEVICE Vec3f __continuation_callable__bsdf_disney(SurfaceInteraction* si, void* mat_data, const Vec3f& wi)
 {   
     const auto* disney = (Disney::Data*)mat_data;
     si->emission = Vec3f(0.0f);
@@ -820,7 +822,7 @@ extern "C" __device__ Vec3f __continuation_callable__bsdf_disney(SurfaceInteract
     const float LdotH /* = VdotH */ = dot(L, H);
 
     const Vec3f base_color = optixDirectCall<Vec3f, SurfaceInteraction*, void*>(
-        disney->base.prg_id, si, disney->base.data);
+        disney->albedo.prg_id, si, disney->albedo.data);
     si->albedo = base_color;
 
     // Diffuse term (diffuse, subsurface, sheen) ======================
@@ -873,7 +875,7 @@ extern "C" __device__ Vec3f __continuation_callable__bsdf_disney(SurfaceInteract
  * 
  * @todo Investigate correct evaluation of PDF.
  */
-extern "C" __device__ float __direct_callable__pdf_disney(SurfaceInteraction* si, void* mat_data, const Vec3f& wi)
+extern "C" DEVICE float __direct_callable__pdf_disney(SurfaceInteraction* si, void* mat_data, const Vec3f& wi)
 {
     const Disney::Data* disney = reinterpret_cast<Disney::Data*>(mat_data);
 
@@ -902,7 +904,7 @@ extern "C" __device__ float __direct_callable__pdf_disney(SurfaceInteraction* si
 }
 
 // Area emitter ------------------------------------------------------------------------------------------
-extern "C" __device__ void __direct_callable__area_emitter(SurfaceInteraction* si, void* surface_data)
+extern "C" DEVICE void __direct_callable__area_emitter(SurfaceInteraction* si, void* surface_data)
 {
     const auto* area = (AreaEmitter::Data*)surface_data;
     si->trace_terminate = true;
@@ -917,18 +919,18 @@ extern "C" __device__ void __direct_callable__area_emitter(SurfaceInteraction* s
 }
 
 // Textures ------------------------------------------------------------------------------------------
-extern "C" __device__ Vec3f __direct_callable__bitmap(SurfaceInteraction* si, void* tex_data) {
+extern "C" DEVICE Vec3f __direct_callable__bitmap(SurfaceInteraction* si, void* tex_data) {
     const auto* image = (BitmapTexture::Data*)tex_data;
     float4 c = tex2D<float4>(image->texture, si->shading.uv.x(), si->shading.uv.y());
     return Vec3f(c);
 }
 
-extern "C" __device__ Vec3f __direct_callable__constant(SurfaceInteraction* si, void* tex_data) {
+extern "C" DEVICE Vec3f __direct_callable__constant(SurfaceInteraction* si, void* tex_data) {
     const auto* constant = (ConstantTexture::Data*)tex_data;
     return constant->color;
 }
 
-extern "C" __device__ Vec3f __direct_callable__checker(SurfaceInteraction* si, void* tex_data) {
+extern "C" DEVICE Vec3f __direct_callable__checker(SurfaceInteraction* si, void* tex_data) {
     const auto* checker = (CheckerTexture::Data*)tex_data;
     const bool is_odd = sinf(si->shading.uv.x() * math::pi * checker->scale) * sinf(si->shading.uv.y() * math::pi * checker->scale) < 0;
     return lerp(checker->color1, checker->color2, (float)is_odd);

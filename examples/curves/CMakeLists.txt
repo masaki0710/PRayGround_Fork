@@ -4,6 +4,7 @@ PRAYGROUND_add_executable(curves target_name
     app.h
     params.h
     kernels.cu
+    OPTIONS -rdc true
 )
 
 target_compile_definitions(

@@ -167,15 +167,10 @@ void App::setup()
         // Shader Binding Table へのデータの登録
         HitgroupRecord record;
         prg.recordPackHeader(&record);
-        HitgroupData record_data = 
+        HitgroupData record_data =
         {
             .shape_data = primitive.shape->devicePtr(),
-            .surface_info =
-            {
-                .data = primitive.material->devicePtr(),
-                .callable_id = primitive.material->surfaceCallableID(),
-                .type = primitive.material->surfaceType()
-            }
+            .surface_info = primitive.material->surfaceInfoDevicePtr()
         };
         record.data = record_data;
 
@@ -221,11 +216,7 @@ void App::setup()
         HitgroupRecord record;
         prg.recordPackHeader(&record);
 
-        SurfaceInfo surface_info = {
-            .data = area.devicePtr(), 
-            .callable_id = area.surfaceCallableID(),
-            .type = SurfaceType::AreaEmitter
-        };
+        SurfaceInfo* surface_info = area.surfaceInfoDevicePtr();
 
         HitgroupData record_data = { shape->devicePtr(), surface_info };
         record.data = record_data;

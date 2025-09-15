@@ -43,7 +43,6 @@ namespace prayground {
         normals.resize(attrib.normals.size() / 3);
         texcoords.resize(attrib.texcoords.size() / 2);
 
-
         for (size_t s = 0; s < shapes.size(); s++)
         {
             size_t index_offset = 0;
@@ -83,8 +82,6 @@ namespace prayground {
                 }
                 faces.push_back(face);
                 index_offset += fv;
-
-                shapes[s].mesh.material_ids[f];
             }
         }
     }

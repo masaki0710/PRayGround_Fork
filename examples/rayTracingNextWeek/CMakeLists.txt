@@ -8,6 +8,7 @@ PRAYGROUND_add_executable(rayTracingNextWeek target_name
     sphere_medium.cpp
     params.h
     kernels.cu
+    OPTIONS -rdc true
 )
 
 target_compile_definitions(

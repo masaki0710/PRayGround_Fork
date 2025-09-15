@@ -39,7 +39,8 @@ private:
     FloatBitmap accum_bmp;
 
     static constexpr uint32_t NRay = 1;
-    Scene<Camera, NRay> scene;
+    using AppScene = Scene<Camera, NRay>;
+    AppScene scene;
 
     bool is_camera_updated;
 

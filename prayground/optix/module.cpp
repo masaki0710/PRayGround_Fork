@@ -232,32 +232,6 @@ namespace prayground {
     // ------------------------------------------------------------------
     void Module::createFromCudaFile(const Context& ctx, const fs::path& filename, OptixPipelineCompileOptions pipeline_options)
     {
-//        auto filepath = pgFindDataPath(filename);
-//        ASSERT(filepath, "The CUDA file to create module of '" + filename.string() + "' is not found.");
-//
-//        const char** log = nullptr;
-//        std::string key = filepath.value().string();
-//        std::map<std::string, std::string*>::iterator elem = g_source_cache.map.find(key);
-//        
-//        // Load cuda source from file
-//        std::string cu_source = pgGetTextFromFile(filepath.value());
-//        std::string* ptx;
-//        if (elem == g_source_cache.map.end())
-//        {
-//#if CUDA_NVRTC_ENABLED
-//            ptx = new std::string;
-//            getPtxFromCuString(*ptx, cu_source.c_str(), filepath.value().string().c_str(), log);
-//            g_source_cache.map[key] = ptx;
-//#else
-//            g_source_cache.map[key] = cu_source;
-//#endif
-//        }
-//        else
-//        {
-//            ptx = elem->second;
-//        }
-//        createFromPtxSource(ctx, *ptx, pipeline_options);
-
         auto filepath = pgFindDataPath(filename);
         ASSERT(filepath, "The CUDA file to create module of '" + filename.string() + "' is not found.");
 
@@ -271,7 +245,7 @@ namespace prayground {
             input_data = new std::string();
 #if CUDA_NVRTC_ENABLED
             std::string cu_source = pgGetTextFromFile(filepath.value());
-            getPtxFromCuString(input_data, cu_source.c_str(), filepath.value().string().c_str(), log);
+            getPtxFromCuString(*input_data, cu_source.c_str(), filepath.value().string().c_str(), log);
 #else
             getInputDataFromFile(*input_data, filepath.value().string());
 #endif

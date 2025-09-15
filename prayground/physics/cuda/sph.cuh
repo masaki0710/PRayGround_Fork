@@ -5,7 +5,7 @@ namespace prayground {
     extern "C" HOST void solveSPH(
         SPHParticles::Data* d_particles,   // Device pointer to particles
         uint32_t num_particles, 
-        SPHConfig config, 
+        SPHConfig config,                 // Changed to reference for adaptive timestep modification
         AABB wall = AABB(Vec3f(-10000), Vec3f(10000))
     );
 

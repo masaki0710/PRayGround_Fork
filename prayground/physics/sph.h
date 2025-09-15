@@ -10,6 +10,22 @@
 
 namespace prayground {
 
+    // Spatial hashing for neighbor search
+    struct SpatialGrid {
+        static constexpr int MAX_PARTICLES_PER_CELL = 64;
+        static constexpr int GRID_SIZE = 128;
+        
+        struct GridCell {
+            int particle_count;
+            int particle_indices[MAX_PARTICLES_PER_CELL];
+        };
+        
+        GridCell* grid;
+        float cell_size;
+        Vec3f grid_min;
+        Vec3f grid_max;
+    };
+
     class SPHParticles : public Shape {
     public:
         struct Data {
@@ -57,12 +73,13 @@ namespace prayground {
     };
 
     struct SPHConfig {
-        float kernel_size;      // h
-        float rest_density;     // rho0
-        Vec3f external_force;   // f_ext
-        float time_step;        // dt
-        float stiffness;        // k 
-        float viscosity;        // mu
+        // Basic SPH parameters
+        float kernel_size;          // h
+        float rest_density;         // rho0
+        Vec3f external_force;       // f_ext
+        float time_step;            // dt
+        float stiffness;            // k 
+        float viscosity;            // mu
         
         /* Parameters at wall collision penalty */
         float ks;               

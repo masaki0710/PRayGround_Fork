@@ -301,7 +301,7 @@ namespace prayground {
     INLINE DEVICE Vec2f pgGetSphereUV(const Vec3f& p) {
         float phi = atan2(p.z(), p.x());
         if (phi < 0) phi += 2.0f * math::pi;
-        float theta = acos(p.y());
+        float theta = acosf(p.y());
         float u = phi / (2.0f * math::pi);
         float v = theta * math::inv_pi;
         return Vec2f(u, v);
@@ -310,10 +310,16 @@ namespace prayground {
     INLINE DEVICE bool pgIntersectionSphere(
         const Sphere::Data* sphere, const Ray& ray, Shading* shading, float* time)
     {
-        const Vec3f oc = ray.o - sphere->center;
-        const float a = dot(ray.d, ray.d);
-        const float half_b = dot(oc, ray.d);
-        const float c = dot(oc, oc) - pow2(sphere->radius);
+        const Vec3f center = sphere->center;
+        const float radius = sphere->radius;
+
+        const Vec3f o = ray.o;
+        const Vec3f v = ray.d;
+
+        const Vec3f oc = o - center;
+        const float a = dot(v, v);
+        const float half_b = dot(oc, v);
+        const float c = dot(oc, oc) - radius * radius;
         const float discriminant = half_b * half_b - a * c;
 
         if (discriminant <= 0.0f)
@@ -329,17 +335,16 @@ namespace prayground {
                 return false;
         }
 
-        const Vec3f p = ray.at(t) - sphere->center;
-        shading->n = p / sphere->radius;
+        const Vec3f p = ray.at(t);
+        shading->n = (p - center) / radius;
         shading->uv = pgGetSphereUV(shading->n);
+        *time = t;
 
         float phi = atan2(shading->n.z(), shading->n.x());
         if (phi < 0) phi += math::two_pi;
         const float theta = acosf(shading->n.y());
         shading->dpdu = Vec3f(-math::two_pi * shading->n.z(), 0, math::two_pi * shading->n.x());
         shading->dpdv = math::pi * Vec3f(shading->n.y() * cosf(phi), -sinf(theta), shading->n.y() * sinf(phi));
-
-        *time = t;
 
         return true;
     }
