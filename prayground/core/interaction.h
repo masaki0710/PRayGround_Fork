@@ -122,7 +122,7 @@ namespace prayground {
         float ior = 1.000293f;
 
         /* Array of surface information. Multiple informations are typically used for layered material */
-        SurfaceInfo* surface_info;
+        const SurfaceInfo* surface_info;
 
         bool trace_terminate;
     };

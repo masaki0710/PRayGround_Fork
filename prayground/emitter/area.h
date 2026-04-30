@@ -36,7 +36,7 @@ namespace prayground {
 
         Data getData() const;
 
-        SurfaceInfo* surfaceInfoDevicePtr() const;
+        const SurfaceInfo* surfaceInfoDevicePtr() const;
     private:
         SurfaceCallableID m_surface_callable_id;
         std::shared_ptr<Texture> m_texture;

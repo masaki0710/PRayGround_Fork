@@ -1,8 +1,6 @@
 #include <prayground/prayground.h>
 #include "params.h"
 
-#define MY_DEBUG 0
-
 extern "C" { __constant__ LaunchParams params; }
 
 using SurfaceInteraction = SurfaceInteraction_<Vec3f>;
@@ -62,6 +60,9 @@ extern "C" __global__ void __raygen__pinhole()
 		si.emission = 0.0f;
 		si.albedo = 0.0f;
 		si.trace_terminate = false;
+        SurfaceInfo surface_info;
+        surface_info.type = SurfaceType::None;
+        si.surface_info = &surface_info;
 
 		int depth = 0;
 		for (;;)
@@ -172,7 +173,6 @@ extern "C" __global__ void __miss__envmap()
     float v = 1.0f - (theta + math::pi / 2.0f) * math::inv_pi;
     si->shading.uv = Vec2f(u, v);
     si->trace_terminate = true;
-    si->surface_info->type = SurfaceType::None;
     si->emission = optixDirectCall<Vec3f, const Vec2f&, void*>(
         env->texture.prg_id, si->shading.uv, env->texture.data);
 }
@@ -202,7 +202,6 @@ extern "C" __global__ void __intersection__sphere()
     pgHitgroupData* data = reinterpret_cast<pgHitgroupData*>(optixGetSbtDataPointer());
     auto* sphere = reinterpret_cast<Sphere::Data*>(data->shape_data);
     Ray ray = getLocalRay();
-    // pgReportIntersectionSphere(sphere, ray);
     Shading shading;
     float t;
     if (pgIntersectionSphere(sphere, ray, &shading, &t)) {
@@ -215,7 +214,6 @@ extern "C" __global__ void __intersection__plane()
     pgHitgroupData* data = reinterpret_cast<pgHitgroupData*>(optixGetSbtDataPointer());
     auto* plane = reinterpret_cast<Plane::Data*>(data->shape_data);
     Ray ray = getLocalRay();
-    // pgReportIntersectionPlane(plane, ray);
     Shading shading;
     float t;
     if (pgIntersectionPlane(plane, ray, &shading, &t)) {
@@ -265,7 +263,7 @@ extern "C" __global__ void __closesthit__box()
     si->shading.dpdu = dpdu;
     si->shading.dpdv = dpdv;
     si->t = ray.tmax;
-    si->wo = ray.d;
+    si->wo = -ray.d;
     si->surface_info = const_cast<SurfaceInfo*>(data->surface_info);
 }
 
@@ -296,7 +294,7 @@ extern "C" __global__ void __closesthit__plane()
     si->shading.dpdu = dpdu;
     si->shading.dpdv = dpdv;
     si->t = ray.tmax;
-    si->wo = ray.d;
+    si->wo = -ray.d;
     si->surface_info = const_cast<SurfaceInfo*>(data->surface_info);
 }
 
@@ -334,7 +332,7 @@ extern "C" __global__ void __closesthit__sphere()
     si->shading.dpdu = dpdu;
     si->shading.dpdv = dpdv;
     si->t = ray.tmax;
-    si->wo = ray.d;
+    si->wo = -ray.d;
     si->surface_info = const_cast<SurfaceInfo*>(data->surface_info);
 }
 
@@ -356,7 +354,7 @@ extern "C" __global__ void __closesthit__mesh()
     si->p = ray.at(ray.tmax);
     si->shading = shading;
     si->t = ray.tmax;
-    si->wo = ray.d;
+    si->wo = -ray.d;
     si->surface_info = const_cast<SurfaceInfo*>(data->surface_info);
 }
 
@@ -380,7 +378,7 @@ extern "C" __global__ void __closesthit__curves()
     si->p = optixTransformPointFromObjectToWorldSpace(hit_point);
     si->shading = shading;
     si->t = ray.tmax;
-    si->wo = ray.d;
+    si->wo = -ray.d;
     si->surface_info = const_cast<SurfaceInfo*>(data->surface_info);
 }
 
@@ -464,7 +462,7 @@ extern "C" __device__ Vec3f __direct_callable__area_emitter(SurfaceInteraction* 
     if (area->twosided)
     {
         is_emitted = 1.0f;
-        si->shading.n = faceforward(si->shading.n, -si->wo, si->shading.n);
+        si->shading.n = faceforward(si->shading.n, si->wo, si->shading.n);
     }
 
     const Vec3f base = optixDirectCall<Vec3f, const Vec2f&, void*>(area->texture.prg_id, si->shading.uv, area->texture.data);

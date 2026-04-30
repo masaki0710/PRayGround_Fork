@@ -174,7 +174,7 @@ extern "C" __device__ void __raygen__pinhole()
                             light_si.shading.uv = li.uv;
                             light_si.shading.n = li.n;
                             light_si.wo = unit_wi;
-                            light_si.surface_info = const_cast<SurfaceInfo*>(&light.surface_info);
+                            light_si.surface_info = const_cast<SurfaceInfo*>(light.surface_info);
 
                             optixDirectCall<void, SurfaceInteraction*, void*>(
                                 light_si.surface_info->bsdf_id, &light_si, light_si.surface_info->data);
@@ -234,7 +234,7 @@ extern "C" __device__ void __raygen__pinhole()
                             light_si.shading.uv = li.uv;
                             light_si.shading.n = li.n;
                             light_si.wo = unit_wi;
-                            light_si.surface_info = const_cast<SurfaceInfo*>(&light.surface_info);
+                            light_si.surface_info = const_cast<SurfaceInfo*>(light.surface_info);
 
                             optixDirectCall<void, SurfaceInteraction*, void*>(
                                 light_si.surface_info->callable_id.bsdf, &light_si, light_si.surface_info->data);
@@ -331,7 +331,6 @@ extern "C" __device__ void __miss__envmap()
     const float v = 1.0f - (theta + math::pi / 2.0f) / math::pi;
     si->shading.uv = Vec2f(u, v);
     si->trace_terminate = true;
-    si->surface_info->type = SurfaceType::None;
     si->emission = optixDirectCall<Vec3f, SurfaceInteraction*, void*>(
         env->texture.prg_id, si, env->texture.data);
 }
@@ -404,7 +403,7 @@ extern "C" __device__ void __closesthit__plane()
     si->t = ray.tmax;
     si->wo = ray.d;
     si->shading.uv = uv;
-    si->surface_info = const_cast<SurfaceInfo*>(&data->surface_info);
+    si->surface_info = const_cast<SurfaceInfo*>(data->surface_info);
     si->shading.dpdu = optixTransformNormalFromObjectToWorldSpace({1.0f, 0.0f, 0.0f});
     si->shading.dpdv = optixTransformNormalFromObjectToWorldSpace({0.0f, 0.0f, 1.0f});
 }
@@ -538,7 +537,7 @@ extern "C" __device__ void __closesthit__sphere() {
     si->t = ray.tmax;
     si->wo = ray.d;
     si->shading.uv = pgGetSphereUV(local_n);
-    si->surface_info = const_cast<SurfaceInfo*>(&data->surface_info);
+    si->surface_info = const_cast<SurfaceInfo*>(data->surface_info);
 
     float phi = atan2(local_n.z(), local_n.x());
     if (phi < 0) phi += 2.0f * math::pi;
@@ -618,7 +617,7 @@ extern "C" __device__ void __closesthit__mesh()
     si->t = ray.tmax;
     si->wo = ray.d;
     si->shading.uv = texcoords;
-    si->surface_info = const_cast<SurfaceInfo*>(&data->surface_info);
+    si->surface_info = const_cast<SurfaceInfo*>(data->surface_info);
 
     Vec3f dpdu, dpdv;
     const Vec2f duv02 = texcoord0 - texcoord2, duv12 = texcoord1 - texcoord2;

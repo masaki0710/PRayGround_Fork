@@ -205,7 +205,7 @@ void App::setup()
         HitgroupRecord record;
         prg.recordPackHeader(&record);
 
-        SurfaceInfo* surface_info = area.surfaceInfoDevicePtr();
+        const SurfaceInfo* surface_info = area.surfaceInfoDevicePtr();
 
         HitgroupData record_data = { shape->devicePtr(), surface_info };
         record.data = record_data;
@@ -371,6 +371,10 @@ void App::update()
 
     // Get rendered result from device
     result_bitmap.copyFromDevice();
+
+    if (params.frame == 1024) {
+        result_bitmap.write(pgPathJoin(pgAppDir(), "rtRestOfYourLife.jpg"));
+    }
 }
 
 // ----------------------------------------------------------------

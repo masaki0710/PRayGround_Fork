@@ -40,7 +40,7 @@ namespace prayground {
             .bumpmap = { nullptr, -1 }
         };
         if (!d_surface_info)
-            CUDA_CHECK(cudaMalloc(&d_surface_info, sizeof(SurfaceInfo)));
+            CUDA_CHECK(cudaMalloc(reinterpret_cast<void**>(&d_surface_info), sizeof(SurfaceInfo)));
         CUDA_CHECK(cudaMemcpy(
             d_surface_info,
             &surface_info, sizeof(SurfaceInfo),
@@ -78,7 +78,7 @@ namespace prayground {
         return { m_texture->getData(), m_intensity, m_twosided };
     }
 
-    SurfaceInfo* AreaEmitter::surfaceInfoDevicePtr() const {
+    const SurfaceInfo* AreaEmitter::surfaceInfoDevicePtr() const {
         return d_surface_info;
     }
 

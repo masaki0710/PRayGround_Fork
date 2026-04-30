@@ -158,7 +158,6 @@ void App::setup()
 
     // Materials
     auto green_diffuse = make_shared<Diffuse>(diffuse_id, green_constant);
-    //auto red_diffuse = make_shared<Diffuse>(diffuse_id, red_constant);
     auto green_disney = make_shared<Disney>(disney_id, green_constant);
     green_disney->setMetallic(0.9f);
     green_disney->setRoughness(0.5f);

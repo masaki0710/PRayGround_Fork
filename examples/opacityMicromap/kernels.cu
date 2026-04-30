@@ -180,7 +180,6 @@ extern "C" DEVICE void __miss__envmap()
 
     si->shading.uv = shading.uv;
     si->trace_terminate = true;
-    si->surface_info->type = SurfaceType::None;
     si->emission = optixDirectCall<Vec4f, const Vec2f&, void*>(
         env->texture.prg_id, si->shading.uv, env->texture.data);
 }

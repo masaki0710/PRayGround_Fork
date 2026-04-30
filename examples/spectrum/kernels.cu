@@ -176,7 +176,6 @@ extern "C" __device__ void __miss__envmap()
     // Record hit-point information
     si->shading.uv = Vec2f(u, v);
     si->trace_terminate = true;
-    si->surface_info->type = SurfaceType::None;
     // Evaluate texture color for emittance
     si->emission = optixDirectCall<Spectrum, SurfaceInteraction*, void*>(
         env->texture.prg_id, si, env->texture.data

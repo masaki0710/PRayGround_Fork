@@ -38,7 +38,7 @@ public:
             .bumpmap = bumpmapData()
         };
         if (!d_surface_info)
-            CUDA_CHECK(cudaMalloc(&d_surface_info, sizeof(SurfaceInfo)));
+            CUDA_CHECK(cudaMalloc(reinterpret_cast<void**>(&d_surface_info), sizeof(SurfaceInfo)));
         CUDA_CHECK(cudaMemcpy(
             d_surface_info,
             &surface_info, sizeof(SurfaceInfo),

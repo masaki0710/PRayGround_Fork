@@ -60,7 +60,7 @@ namespace prayground {
     
         void* devicePtr() const { return d_data; }
 
-        SurfaceInfo* surfaceInfoDevicePtr() const { return d_surface_info; }
+        const SurfaceInfo* surfaceInfoDevicePtr() const { return d_surface_info; }
 
     protected:
         SurfaceCallableID m_surface_callable_id;
