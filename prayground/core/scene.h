@@ -59,7 +59,6 @@ namespace prayground {
             void free() {
                 shape->free();
                 for (auto m : materials) m->free();
-                if (instance) instance->free();
             }
         };
 
@@ -86,7 +85,6 @@ namespace prayground {
             void free() {
                 shape->free();
                 for (auto e : emitters) e->free();
-                if (instance) instance->free();
                 gas.free();
             }
         };
