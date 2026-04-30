@@ -30,7 +30,7 @@ static __forceinline__ __device__ void trace(
 }
 
 // raygen
-extern "C" __device__ void __raygen__pinhole()
+extern "C" __global__ void __raygen__pinhole()
 {
 	const pgRaygenData<Camera>* raygen = (pgRaygenData<Camera>*)optixGetSbtDataPointer();
 
@@ -148,7 +148,7 @@ extern "C" __device__ void __raygen__pinhole()
 }
 
 // Miss
-extern "C" __device__ void __miss__envmap()
+extern "C" __global__ void __miss__envmap()
 {
     pgMissData* data = reinterpret_cast<pgMissData*>(optixGetSbtDataPointer());
     auto* env = reinterpret_cast<EnvironmentEmitter::Data*>(data->env_data);
@@ -177,61 +177,168 @@ extern "C" __device__ void __miss__envmap()
         env->texture.prg_id, si->shading.uv, env->texture.data);
 }
 
-extern "C" __device__ void __miss__shadow()
+extern "C" __global__ void __miss__shadow()
 {
     setPayload<0>(1);
 }
 
 // Hitgroups 
-extern "C" __device__ void __intersection__box()
+extern "C" __global__ void __intersection__box()
 {
     pgHitgroupData* data = reinterpret_cast<pgHitgroupData*>(optixGetSbtDataPointer());
     auto* box = reinterpret_cast<Box::Data*>(data->shape_data);
     Ray ray = getLocalRay();
-    pgReportIntersectionBox(box, ray);
+
+    Shading shading;
+    float t;
+    int axis;
+    if (pgIntersectionBox(box, ray, &shading, &t, &axis)) {
+        optixReportIntersection(t, 0, Vec3f_as_ints(shading.n), Vec2f_as_ints(shading.uv), axis);
+    }
 }
 
-extern "C" __device__ void __intersection__sphere()
+extern "C" __global__ void __intersection__sphere()
 {
     pgHitgroupData* data = reinterpret_cast<pgHitgroupData*>(optixGetSbtDataPointer());
     auto* sphere = reinterpret_cast<Sphere::Data*>(data->shape_data);
     Ray ray = getLocalRay();
-    pgReportIntersectionSphere(sphere, ray);
+    // pgReportIntersectionSphere(sphere, ray);
+    Shading shading;
+    float t;
+    if (pgIntersectionSphere(sphere, ray, &shading, &t)) {
+        optixReportIntersection(t, 0, Vec3f_as_ints(shading.n), Vec2f_as_ints(shading.uv));
+    }
 }
 
-extern "C" __device__ void __intersection__plane()
+extern "C" __global__ void __intersection__plane()
 {
     pgHitgroupData* data = reinterpret_cast<pgHitgroupData*>(optixGetSbtDataPointer());
     auto* plane = reinterpret_cast<Plane::Data*>(data->shape_data);
     Ray ray = getLocalRay();
-    pgReportIntersectionPlane(plane, ray);
+    // pgReportIntersectionPlane(plane, ray);
+    Shading shading;
+    float t;
+    if (pgIntersectionPlane(plane, ray, &shading, &t)) {
+        optixReportIntersection(t, 0, Vec3f_as_ints(shading.n), Vec2f_as_ints(shading.uv));
+    }
 }
 
-extern "C" __device__ void __closesthit__custom()
+extern "C" __global__ void __closesthit__box()
 {
     pgHitgroupData* data = reinterpret_cast<pgHitgroupData*>(optixGetSbtDataPointer());
 
     Ray ray = getWorldRay();
 
-    // If you use `reportIntersection*` function for intersection test, 
-    // you can fetch the shading on a surface from two attributes
-    Shading* shading = getPtrFromTwoAttributes<Shading, 0>();
+    // Unpack attributes from intersection shader
+    Vec3f n = getVec3fFromAttribute<0>();
+    Vec2f uv = getVec2fFromAttribute<3>();
+    uint32_t axis = getAttribute<5>();
+
+    // Compute dpdu/dpdv based on which face was hit
+    Vec3f dpdu, dpdv;
+    if (axis == 0)  // X face
+    {
+        dpdu = Vec3f(0.0f, 0.0f, 1.0f);
+        dpdv = Vec3f(0.0f, 1.0f, 0.0f);
+    }
+    else if (axis == 1)  // Y face
+    {
+        dpdu = Vec3f(1.0f, 0.0f, 0.0f);
+        dpdv = Vec3f(0.0f, 0.0f, 1.0f);
+    }
+    else  // Z face (axis == 2)
+    {
+        dpdu = Vec3f(1.0f, 0.0f, 0.0f);
+        dpdv = Vec3f(0.0f, 1.0f, 0.0f);
+    }
 
     // Transform shading frame to world space
-    shading->n = optixTransformNormalFromObjectToWorldSpace(shading->n);
-    shading->dpdu = optixTransformVectorFromObjectToWorldSpace(shading->dpdu);
-    shading->dpdv = optixTransformVectorFromObjectToWorldSpace(shading->dpdv);
+    n = optixTransformNormalFromObjectToWorldSpace(n);
+    dpdu = optixTransformVectorFromObjectToWorldSpace(dpdu);
+    dpdv = optixTransformVectorFromObjectToWorldSpace(dpdv);
 
-    auto* si = getSurfaceInteraction();
+    SurfaceInteraction* si = getSurfaceInteraction();
 
     si->p = ray.at(ray.tmax);
-    si->shading = *shading;
+    si->shading.n = n;
+    si->shading.uv = uv;
+    si->shading.dpdu = dpdu;
+    si->shading.dpdv = dpdv;
     si->t = ray.tmax;
     si->wo = ray.d;
     si->surface_info = const_cast<SurfaceInfo*>(data->surface_info);
 }
 
-extern "C" __device__ void __closesthit__mesh()
+extern "C" __global__ void __closesthit__plane()
+{
+    pgHitgroupData* data = reinterpret_cast<pgHitgroupData*>(optixGetSbtDataPointer());
+
+    Ray ray = getWorldRay();
+
+    // Unpack attributes from intersection shader
+    Vec3f n = getVec3fFromAttribute<0>();
+    Vec2f uv = getVec2fFromAttribute<3>();
+
+    // Plane has fixed dpdu/dpdv in object space
+    Vec3f dpdu = Vec3f(1, 0, 0);
+    Vec3f dpdv = Vec3f(0, 0, 1);
+
+    // Transform shading frame to world space
+    n = optixTransformNormalFromObjectToWorldSpace(n);
+    dpdu = optixTransformVectorFromObjectToWorldSpace(dpdu);
+    dpdv = optixTransformVectorFromObjectToWorldSpace(dpdv);
+
+    SurfaceInteraction* si = getSurfaceInteraction();
+
+    si->p = ray.at(ray.tmax);
+    si->shading.n = n;
+    si->shading.uv = uv;
+    si->shading.dpdu = dpdu;
+    si->shading.dpdv = dpdv;
+    si->t = ray.tmax;
+    si->wo = ray.d;
+    si->surface_info = const_cast<SurfaceInfo*>(data->surface_info);
+}
+
+extern "C" __global__ void __closesthit__sphere()
+{
+    pgHitgroupData* data = reinterpret_cast<pgHitgroupData*>(optixGetSbtDataPointer());
+
+    Ray ray = getWorldRay();
+
+    // Unpack attributes from intersection shader
+    Vec3f n = getVec3fFromAttribute<0>();
+    Vec2f uv = getVec2fFromAttribute<3>();
+
+    // Compute dpdu/dpdv for sphere using parametric derivatives
+    // For sphere: phi = atan2(z, x), theta = acos(y)
+    // u = phi / (2*pi), v = theta / pi
+    // dpdu/dpdv are the derivatives with respect to texture coordinates
+    float phi = atan2(n.z(), n.x());
+    if (phi < 0) phi += math::two_pi;
+    const float theta = acosf(n.y());
+    
+    Vec3f dpdu = Vec3f(-math::two_pi * n.z(), 0, math::two_pi * n.x());
+    Vec3f dpdv = math::pi * Vec3f(n.y() * cosf(phi), -sinf(theta), n.y() * sinf(phi));
+
+    // Transform shading frame to world space
+    n = optixTransformNormalFromObjectToWorldSpace(n);
+    dpdu = optixTransformVectorFromObjectToWorldSpace(dpdu);
+    dpdv = optixTransformVectorFromObjectToWorldSpace(dpdv);
+
+    SurfaceInteraction* si = getSurfaceInteraction();
+
+    si->p = ray.at(ray.tmax);
+    si->shading.n = n;
+    si->shading.uv = uv;
+    si->shading.dpdu = dpdu;
+    si->shading.dpdv = dpdv;
+    si->t = ray.tmax;
+    si->wo = ray.d;
+    si->surface_info = const_cast<SurfaceInfo*>(data->surface_info);
+}
+
+extern "C" __global__ void __closesthit__mesh()
 {
     pgHitgroupData* data = reinterpret_cast<pgHitgroupData*>(optixGetSbtDataPointer());
     const TriangleMesh::Data* mesh_data = reinterpret_cast<TriangleMesh::Data*>(data->shape_data);
@@ -253,10 +360,9 @@ extern "C" __device__ void __closesthit__mesh()
     si->surface_info = const_cast<SurfaceInfo*>(data->surface_info);
 }
 
-extern "C" __device__ void __closesthit__curves()
+extern "C" __global__ void __closesthit__curves()
 {
     const pgHitgroupData* data = reinterpret_cast<pgHitgroupData*>(optixGetSbtDataPointer());
-    const Curves::Data* curves = reinterpret_cast<Curves::Data*>(data->shape_data);
 
     // Get segment ID
     const uint32_t primitive_id = optixGetPrimitiveIndex();
@@ -278,7 +384,7 @@ extern "C" __device__ void __closesthit__curves()
     si->surface_info = const_cast<SurfaceInfo*>(data->surface_info);
 }
 
-extern "C" __device__ void __closesthit__shadow()
+extern "C" __global__ void __closesthit__shadow()
 {
     setPayload<0>(0);
 }
