@@ -58,7 +58,7 @@ extern "C" __device__ void __raygen__shade()
     {
         si.wi = normalize(Vec3f(-1, -1, 2));
         Vec3f shade = optixDirectCall<Vec3f, SurfaceInteraction*, void*>(
-            si.surface_info.callable_id.bsdf, &si, si.surface_info.data);
+            si.surface_info->callable_id.bsdf, &si, si.surface_info->data);
         //Vec3f shade = dot(si.wi, si.shading.n) * Vec3f(0.3f, 0.7f, 0.3f);
         result = shade;
     }
@@ -94,7 +94,7 @@ extern "C" __device__ void __miss__envmap()
     float v = 1.0f - (theta + math::pi / 2.0f) * math::inv_pi;
     si->shading.uv = Vec2f(u, v);
     si->trace_terminate = true;
-    si->surface_info.type = SurfaceType::None;
+    si->surface_info->type = SurfaceType::None;
     si->emission = optixDirectCall<Vec3f, SurfaceInteraction*, void*>(
         env->texture.prg_id, si, env->texture.data);
 }
@@ -160,7 +160,7 @@ extern "C" __device__ void __closesthit__mesh()
     si->shading = shading;
     si->t = ray.tmax;
     si->wo = ray.d;
-    si->surface_info = data->surface_info;
+    si->surface_info = const_cast<SurfaceInfo*>(data->surface_info);
 }
 
 extern "C" __device__ void __closesthit__custom()
@@ -181,7 +181,7 @@ extern "C" __device__ void __closesthit__custom()
     si->shading = *shading;
     si->t = ray.tmax;
     si->wo = ray.d;
-    si->surface_info = data->surface_info;
+    si->surface_info = const_cast<SurfaceInfo*>(data->surface_info);
 }
 
 extern "C" __device__ Vec3f __direct_callable__phong(SurfaceInteraction* si, void* mat_data)

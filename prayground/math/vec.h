@@ -82,7 +82,7 @@ namespace prayground {
         HOSTDEVICE Vec2(T t) { e[0] = t; e[1] = t; }
 
         // Copy constructor
-        HOSTDEVICE Vec2(const Vec2& v) = default;
+        Vec2(const Vec2& v) = default;
 
         HOSTDEVICE Vec2(const CUVec& v) { e[0] = v.x; e[1] = v.y; }
 
@@ -174,7 +174,7 @@ namespace prayground {
         HOSTDEVICE Vec3(T t) { e[0] = t; e[1] = t; e[2] = t; }
         
         // Copy constructor
-        HOSTDEVICE Vec3(const Vec3& v) = default;
+        Vec3(const Vec3& v) = default;
 
         // From other dimension vector
         HOSTDEVICE Vec3(const Vec2<T>& v, const T& z) { e[0] = v[0]; e[1] = v[1]; e[2] = z; }
@@ -277,18 +277,18 @@ namespace prayground {
         HOSTDEVICE Vec4(T t) { e[0] = t; e[1] = t; e[2] = t; e[3] = t; }
 
         // Copy constructor
-        HOSTDEVICE Vec4(const Vec4& v) = default;
+        Vec4(const Vec4& v) = default;
 
         // From other dimension vector
         HOSTDEVICE Vec4(const Vec2<T>& v, const T& z, const T& w) { e[0] = v[0]; e[1] = v[1]; e[2] = z; e[3] = w; }
         HOSTDEVICE Vec4(const Vec2<T>& xy, const Vec2<T>& zw) { e[0] = xy[0]; e[1] = xy[1]; e[2] = zw[0]; e[3] = zw[1]; }
-        HOSTDEVICE Vec4(const Vec3<T>& v) { e[0] = v[0]; e[1] = v[1]; e[2] = v[2]; e[3] = T(1); }
+        HOSTDEVICE Vec4(const Vec3<T>& v) { e[0] = v[0]; e[1] = v[1]; e[2] = v[2]; e[3] = T(0); }
         HOSTDEVICE Vec4(const Vec3<T>& v, const T& w) { e[0] = v[0]; e[1] = v[1]; e[2] = v[2]; e[3] = w; }
 
         // From CUDA vector i.e. float3
         HOSTDEVICE Vec4(const typename CUVec2<T>::Type& v, const T& z, const T& w) { e[0] = v.x; e[1] = v.y; e[2] = z; e[3] = w; }
         HOSTDEVICE Vec4(const typename CUVec2<T>::Type& xy, const typename CUVec2<T>::Type& zw) { e[0] = xy.x; e[1] = xy.y; e[2] = zw.x; e[3] = zw.y; }
-        HOSTDEVICE Vec4(const typename CUVec3<T>::Type& v) { e[0] = v.x; e[1] = v.y; e[2] = v.z; e[3] = T(1); }
+        HOSTDEVICE Vec4(const typename CUVec3<T>::Type& v) { e[0] = v.x; e[1] = v.y; e[2] = v.z; e[3] = T(0); }
         HOSTDEVICE Vec4(const typename CUVec3<T>::Type& v, const T& w) { e[0] = v.x; e[1] = v.y; e[2] = v.z; e[3] = w; }
         HOSTDEVICE Vec4(const CUVec& v) { e[0] = v.x; e[1] = v.y; e[2] = v.z; e[3] = v.w; }
 

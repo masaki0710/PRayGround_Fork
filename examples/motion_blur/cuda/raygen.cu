@@ -4,7 +4,7 @@
 
 using namespace prayground;
 
-static __forceinline__ __device__ void getCameraRay(const CameraData& camera, const float x, const float y, float3& ro, float3& rd)
+static __forceinline__ __device__ void getCameraRay(const Camera::Data& camera, const float x, const float y, float3& ro, float3& rd)
 {
     rd = normalize(x * camera.U + y * camera.V + camera.W);
     ro = camera.origin;
@@ -16,9 +16,9 @@ extern "C" __device__ void __raygen__pinhole()
 
     const uint3 idx = optixGetLaunchIndex();
 
-    float3 result = make_float3(0.0f);
+    Vec3f result = 0.0f;
 
-    unsigned int seed = tea<4>(idx.y * params.width + idx.x, params.subframe_index);
+    unsigned int seed = tea<4>(idx.y * params.width + idx.x, params.frame);
 
     for (int i = 0; i < params.samples_per_launch; i++)
     {
@@ -48,19 +48,19 @@ extern "C" __device__ void __raygen__pinhole()
     const uint3 launch_index = optixGetLaunchIndex();
     const unsigned int image_index = launch_index.y * params.width + launch_index.x;
 
-    if (result.x != result.x) result.x = 0.0f;
-    if (result.y != result.y) result.y = 0.0f;
-    if (result.z != result.z) result.z = 0.0f;
+    if (result.x() != result.x()) result.x() = 0.0f;
+    if (result.y() != result.y()) result.y() = 0.0f;
+    if (result.z() != result.z()) result.z() = 0.0f;
 
-    float3 accum_color = result / static_cast<float>(params.samples_per_launch);
-    if (params.subframe_index > 0)
+    Vec3f accum_color = result / static_cast<float>(params.samples_per_launch);
+    if (params.frame > 0)
     {
-        const float a = 1.0f / static_cast<float>(params.subframe_index + 1);
-        const float3 accum_color_prev = make_float3(params.accum_buffer[image_index]);
+        const float a = 1.0f / static_cast<float>(params.frame + 1);
+        const Vec3f accum_color_prev = Vec3f(params.accum_buffer[image_index]);
         accum_color = lerp(accum_color_prev, accum_color, a);
     }
     
-    uchar3 color = make_color(accum_color);
-    params.result_buffer[image_index] = make_uchar4(color.x, color.y, color.z, 255);
-    params.accum_buffer[image_index] = make_float4(accum_color);
+    Vec3u color = make_color(accum_color, true);
+    params.result_buffer[image_index] = Vec4u(color, 255);
+    params.accum_buffer[image_index] = Vec4f(accum_color);
 }

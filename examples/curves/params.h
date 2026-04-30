@@ -12,12 +12,12 @@ using CheckerTexture = CheckerTexture_<Vec3f>;
 
 struct LightInfo
 {
-	Vec3f position;
+	float3 position;
 	
 	// Emittance for phong-shading
-	Vec3f ambient;
-	Vec3f diffuse;
-	Vec3f specular;
+	float3 ambient;
+	float3 diffuse;
+	float3 specular;
 };
 
 struct PhongData

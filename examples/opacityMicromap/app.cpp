@@ -214,7 +214,7 @@ void App::setup()
         createGAS(shape, transform);
         AreaEmitterInfo area_emitter = {
             .shape = shape->devicePtr(),
-            .surface_info = area->surfaceInfo(),
+            .surface_info = *area->surfaceInfoDevicePtr(),
             .objToWorld = transform, 
             .worldToObj = transform.inverse()
         };

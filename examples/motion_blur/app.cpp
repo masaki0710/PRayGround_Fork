@@ -62,8 +62,8 @@ void App::setup()
     params.samples_per_launch = 4;
     params.light =
     {
-        .pos = Vec3f(0, 9.9f, 0), 
-        .color = Vec3f(1.0f), 
+        .pos = make_float3(0.0f, 9.9f, 0.0f), 
+        .color = make_float3(1.0f, 1.0f, 1.0f), 
         .intensity = 5.0f
     };
     params.result_buffer = reinterpret_cast<Vec4u*>(result_bitmap.deviceData());

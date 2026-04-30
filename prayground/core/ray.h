@@ -6,7 +6,7 @@
 namespace prayground {
 
     struct Ray {
-        HOSTDEVICE Ray() = default;
+        Ray() = default;
         HOSTDEVICE Ray(const Vec3f& o, const Vec3f& d, float tmin, float tmax, float t = 0.0f)
             : o(o), d(d), tmin(tmin), tmax(tmax), t(t) 
         {}

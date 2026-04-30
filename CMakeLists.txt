@@ -147,6 +147,11 @@ if( NOT PASSED_FIRST_CONFIGURE )
     optix_add_cuda_flag("-Wno-deprecated-gpu-targets")
   endif()
 
+  # CUDA 11.x has issues with __int128_t in libcxx headers during device compilation
+  # This define prevents instantiation of 128-bit integer types in device code
+  # See: https://github.com/NVIDIA/cub/issues/286
+  optix_add_cuda_flag("-D_LIBCUDACXX_HAS_NO_INT128")
+
   if(CUDA_USE_LOCAL_ENV)
     optix_add_cuda_flag("--use-local-env")
   endif()
@@ -171,7 +176,7 @@ if( NOT PASSED_FIRST_CONFIGURE )
       string( TOUPPER ${config} config_upper )
       set( CUDA_NVRTC_FLAGS_${config_upper} ${PRAYGROUND_NVRTC_CXX} -arch ${CUDA_MIN_SM_COMPUTE_TARGET} ${PRAYGROUND_NVRTC_DEBUG} -use_fast_math -default-device -rdc true -D__x86_64 CACHE STRING "List of NVRTC options just for the PRAYGROUND" FORCE )
 
-      if( ${config} STREQUAL ${CMAKE_BUILD_TYPE} )
+      if( "${config}" STREQUAL "${CMAKE_BUILD_TYPE}" )
         set( CUDA_NVRTC_FLAGS ${CUDA_NVRTC_FLAGS_${config_upper}} CACHE STRING "List of NVRTC options just for the PRAYGROUND" )
       endif()
     endforeach()

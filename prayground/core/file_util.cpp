@@ -3,6 +3,10 @@
 #include <array>
 #include <prayground/core/util.h>
 
+#ifndef _MSC_VER
+#include <unistd.h>
+#endif
+
 namespace prayground {
 
     namespace fs = std::filesystem;

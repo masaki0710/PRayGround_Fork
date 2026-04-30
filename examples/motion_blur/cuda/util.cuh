@@ -1,12 +1,6 @@
 #pragma once 
 
-#include <optix.h>
-#include <cuda_runtime.h>
-#include <prayground/math/vec_math.h>
-#include <prayground/math/util.h>
-#include <prayground/math/random.h>
-#include <prayground/optix/util.h>
-#include <prayground/optix/macros.h>
+#include <prayground/prayground.h>
 #include "../params.h"
 
 namespace prayground {
@@ -23,26 +17,6 @@ namespace prayground {
         float3 shading_val;
         float2 uv;
     };
-
-    template <typename T>
-    INLINE DEVICE void swap(T& a, T& b)
-    {
-        T c(a); a = b; b = c;
-    }
-
-    INLINE DEVICE void* unpackPointer( unsigned int i0, unsigned int i1 )
-    {
-        const unsigned long long uptr = static_cast<unsigned long long>( i0 ) << 32 | i1;
-        void* ptr = reinterpret_cast<void*>( uptr );
-        return ptr;
-    }
-
-    INLINE DEVICE void packPointer(void* ptr, unsigned int& i0, unsigned int& i1)
-    {
-        const unsigned long long uptr = reinterpret_cast<unsigned long long>( ptr );
-        i0 = uptr >> 32;
-        i1 = uptr & 0x00000000ffffffff;
-    }
 
     INLINE DEVICE SurfaceInteraction* getSurfaceInteraction()
     {

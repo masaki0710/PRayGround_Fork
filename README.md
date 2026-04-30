@@ -12,12 +12,14 @@ This project still remain a huge room to improve its readability, performance, a
 # :computer: Requirements
 Before building the project, please be sure to check requirements and your environment, especially if the your version of the C++ compiler supports C++20.
 
-- CUDA Toolkit (Tested : 11.1, 11.2, 11.3, 11.4)
+- CUDA Toolkit (Tested : 11.1, 11.2, 11.3, 11.4, 11.8)
 - C++ compiler which supports C++20 
     - Linux (Tested : g++ 10.3.0)
     - Windows (Tested : Visual Studio 2019, version 16.10.2) 
 - OptiX 7 and 8 (Tested : 7.3 to 8.0)
 - CMake 3.0 minimum (Tested : cmake 3.16.3)
+
+**Note on CUDA 11.x and __int128_t:** CUDA 11.x's libcxx has a known issue where 128-bit integer types are instantiated in device code, causing compilation errors. The CMakeLists.txt automatically adds the `-D_LIBCUDACXX_HAS_NO_INT128` compiler flag to suppress this issue. This is compatible with both OptiX 7.x and 8.x.
 
 # :inbox_tray: Cloning
 ```

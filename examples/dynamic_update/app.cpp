@@ -61,7 +61,7 @@ void App::setup()
     albedo_bitmap.allocate(PixelFormat::RGB, pgGetWidth(), pgGetHeight());
     params.width = result_bitmap.width();
     params.height = result_bitmap.height();
-    params.light.pos = Vec3f(0.0f, 9.9f, 0.0f);
+    params.light.pos = make_float3(0.0f, 9.9f, 0.0f);
     initResultBufferOnDevice();
 
     // カメラの設定

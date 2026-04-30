@@ -43,7 +43,7 @@ void App::setup()
     pipeline.setDirectCallableDepth(5);
     pipeline.setContinuationCallableDepth(5);
     pipeline.setNumPayloads(5);
-    pipeline.setNumAttributes(5);
+    pipeline.setNumAttributes(6);
 
     // Create module
     Module module;
@@ -131,15 +131,15 @@ void App::setup()
     mesh_prgs[1] = pipeline.createHitgroupProgram(context, module, "__closesthit__shadow");
 
     std::array<ProgramGroup, NRay> sphere_prgs;
-    sphere_prgs[0] = pipeline.createHitgroupProgram(context, module, "__closesthit__custom", "__intersection__sphere");
+    sphere_prgs[0] = pipeline.createHitgroupProgram(context, module, "__closesthit__sphere", "__intersection__sphere");
     sphere_prgs[1] = pipeline.createHitgroupProgram(context, module, "__closesthit__shadow", "__intersection__sphere");
 
     std::array<ProgramGroup, NRay> plane_prgs;
-    plane_prgs[0] = pipeline.createHitgroupProgram(context, module, "__closesthit__custom", "__intersection__plane");
+    plane_prgs[0] = pipeline.createHitgroupProgram(context, module, "__closesthit__plane", "__intersection__plane");
     plane_prgs[1] = pipeline.createHitgroupProgram(context, module, "__closesthit__shadow", "__intersection__plane");
 
     std::array<ProgramGroup, NRay> box_prgs;
-    box_prgs[0] = pipeline.createHitgroupProgram(context, module, "__closesthit__custom", "__intersection__box");
+    box_prgs[0] = pipeline.createHitgroupProgram(context, module, "__closesthit__box", "__intersection__box");
     box_prgs[1] = pipeline.createHitgroupProgram(context, module, "__closesthit__shadow", "__intersection__box");
 
     std::array<ProgramGroup, NRay> curve_prgs;

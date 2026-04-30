@@ -106,7 +106,7 @@ namespace prayground {
 
         pressure_force *= -1.0f / pi.density;
 
-        pi.force = pressure_force + viscosity_force + config.external_force;
+        pi.force = pressure_force + viscosity_force + Vec3f(config.external_force);
     }
 
     GLOBAL void particleCollision(SPHParticles::Data* particles, uint32_t num_particles, SPHConfig config)

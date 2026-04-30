@@ -11,7 +11,7 @@ namespace prayground {
 
     struct Light
     {
-        Vec3f pos;
+        float3 pos;
     };
 
     struct LaunchParams

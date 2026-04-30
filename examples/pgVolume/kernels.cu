@@ -85,23 +85,23 @@ extern "C" __device__ void __raygen__medium()
                 break;
             }
 
-            if (si.surface_info.type == SurfaceType::AreaEmitter)
+            if (si.surface_info->type == SurfaceType::AreaEmitter)
             {
                 // Evaluating emission from emitter
                 optixDirectCall<void, SurfaceInteraction*, void*>(
-                    si.surface_info.callable_id.sample, &si, si.surface_info.data);
+                    si.surface_info->callable_id.sample, &si, si.surface_info->data);
                 result += si.emission * throughput;
 
                 if (si.trace_terminate)
                     break;
             }
             // Material and medium sampling
-            else if (+(si.surface_info.type & (SurfaceType::Material | SurfaceType::Medium)))
+            else if (+(si.surface_info->type & (SurfaceType::Material | SurfaceType::Medium)))
             {
                 // Sampling scattered direction
                 float pdf;
                 Vec3f bsdf = optixDirectCall<Vec3f, SurfaceInteraction*, void*, float&>(
-                    si.surface_info.callable_id.sample, &si, si.surface_info.data, pdf);
+                    si.surface_info->callable_id.sample, &si, si.surface_info->data, pdf);
                 throughput *= bsdf / pdf;
             }
 
@@ -157,7 +157,7 @@ extern "C" __device__ void __miss__envmap()
     const float v = 1.0f - (theta + math::pi / 2.0f) / math::pi;
     si->shading.uv = Vec2f(u, v);
     si->trace_terminate = true;
-    si->surface_info.type = SurfaceType::None;
+    si->surface_info->type = SurfaceType::None;
     si->emission = optixDirectCall<Vec3f, const Vec2f&, void*>(
         env->texture.prg_id, si->shading.uv, env->texture.data
     );
@@ -270,7 +270,7 @@ extern "C" __device__ void __closesthit__plane()
     si->t = ray.tmax;
     si->wo = ray.d;
     si->shading.uv = uv;
-    si->surface_info = data->surface_info;
+    si->surface_info = const_cast<SurfaceInfo*>(&data->surface_info);
     si->shading.dpdu = optixTransformNormalFromObjectToWorldSpace({1.0f, 0.0f, 0.0f});
     si->shading.dpdv = optixTransformNormalFromObjectToWorldSpace({0.0f, 0.0f, 1.0f});
 }
@@ -327,7 +327,7 @@ extern "C" __device__ void __closesthit__sphere()
     si->t = ray.tmax;
     si->wo = ray.d;
     si->shading.uv = pgGetSphereUV(local_n);
-    si->surface_info = data->surface_info;
+    si->surface_info = const_cast<SurfaceInfo*>(&data->surface_info);
 
     float phi = atan2(local_n.z(), local_n.x());
     if (phi < 0) phi += 2.0f * math::pi;
@@ -468,11 +468,7 @@ extern "C" __device__ void __closesthit__grid()
     si->p = ray.at(ray.tmax);
     si->shading.n = Vec3f(0,1,0);   // arbitrary
     si->wo = ray.d;
-    si->surface_info = SurfaceInfo{ 
-        data->shape_data, 
-        data->surface_info.callable_id,
-        SurfaceType::Medium 
-    };
+    si->surface_info = const_cast<SurfaceInfo*>(&data->surface_info);
     si->shading.uv = Vec2f(0.5f);  // arbitrary
 }
 

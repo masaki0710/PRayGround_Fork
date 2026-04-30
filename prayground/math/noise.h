@@ -24,7 +24,7 @@ namespace prayground {
 
         unsigned int m_seed;
 
-        int* perlinGeneratePerm()
+        HOSTDEVICE int* perlinGeneratePerm()
         {
             int* p = new int[POINT_COUNT];
             for (int i = 0; i < POINT_COUNT; i++)
@@ -35,7 +35,7 @@ namespace prayground {
             return p;
         }
 
-        static void permute(unsigned int& seed, int* p, int n)
+        static HOSTDEVICE void permute(unsigned int& seed, int* p, int n)
         {
             for (int i = n-1; i > 0; i--)
             {

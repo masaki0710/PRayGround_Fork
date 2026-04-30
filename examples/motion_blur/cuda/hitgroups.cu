@@ -5,17 +5,17 @@ using namespace prayground;
 extern "C" __device__ void __intersection__plane()
 {
     const HitgroupData* data = reinterpret_cast<HitgroupData*>(optixGetSbtDataPointer());
-    const PlaneData* plane_data = reinterpret_cast<PlaneData*>(data->shape_data);
+    const Plane::Data* plane_data = reinterpret_cast<Plane::Data*>(data->shape_data);
 
     const float2 min = plane_data->min;
     const float2 max = plane_data->max;
 
     Ray ray = getLocalRay();
 
-    const float t = -ray.o.y / ray.d.y;
+    const float t = -ray.o.y() / ray.d.y();
 
-    const float x = ray.o.x + t * ray.d.x;
-    const float z = ray.o.z + t * ray.d.z;
+    const float x = ray.o.x() + t * ray.d.x();
+    const float z = ray.o.z() + t * ray.d.z();
 
     float2 uv = make_float2((x - min.x) / (max.x - min.x), (z - min.y) / (max.y - min.y));
 
@@ -47,14 +47,16 @@ extern "C" __device__ void __closesthit__plane()
     );
     si->albedo = albedo;
 
-    const float3 light_dir = normalize(params.light.pos - si->p);
-    si->shading_val = 0.8f * fmaxf(0.0f, dot(light_dir, si->n)) * albedo + 0.2f * albedo;
+    const Vec3f light_pos = Vec3f(params.light.pos);
+    const float3 light_dir = normalize(light_pos - si->p);
+    const Vec3f light_color = Vec3f(params.light.color);
+    si->shading_val = 0.8f * params.light.intensity * fmaxf(0.0f, dot(light_dir, si->n)) * (light_color * albedo) + 0.2f * albedo;
 }
 
 extern "C" __device__ void __closesthit__mesh()
 {
     HitgroupData* data = reinterpret_cast<HitgroupData*>(optixGetSbtDataPointer());
-    const MeshData* mesh_data = reinterpret_cast<MeshData*>(data->shape_data);
+    const TriangleMesh::Data* mesh_data = reinterpret_cast<TriangleMesh::Data*>(data->shape_data);
 
     Ray ray = getWorldRay();
     
@@ -63,14 +65,14 @@ extern "C" __device__ void __closesthit__mesh()
     const float u = optixGetTriangleBarycentrics().x;
     const float v = optixGetTriangleBarycentrics().y;
 
-    const float2 texcoord0 = mesh_data->texcoords[face.texcoord_id.x];
-    const float2 texcoord1 = mesh_data->texcoords[face.texcoord_id.y];
-    const float2 texcoord2 = mesh_data->texcoords[face.texcoord_id.z];
-    const float2 texcoords = (1-u-v)*texcoord0 + u*texcoord1 + v*texcoord2;
+    const Vec2f texcoord0 = mesh_data->texcoords[face.texcoord_id.x()];
+    const Vec2f texcoord1 = mesh_data->texcoords[face.texcoord_id.y()];
+    const Vec2f texcoord2 = mesh_data->texcoords[face.texcoord_id.z()];
+    const Vec2f texcoords = (1-u-v)*texcoord0 + u*texcoord1 + v*texcoord2;
 
-    float3 n0 = normalize(mesh_data->normals[face.normal_id.x]);
-	float3 n1 = normalize(mesh_data->normals[face.normal_id.y]);
-	float3 n2 = normalize(mesh_data->normals[face.normal_id.z]);
+    float3 n0 = normalize(mesh_data->normals[face.normal_id.x()]);
+	float3 n1 = normalize(mesh_data->normals[face.normal_id.y()]);
+	float3 n2 = normalize(mesh_data->normals[face.normal_id.z()]);
 
     // Linear interpolation of normal by barycentric coordinates.
     float3 local_n = (1.0f-u-v)*n0 + u*n1 + v*n2;
@@ -82,12 +84,14 @@ extern "C" __device__ void __closesthit__mesh()
     si->n = faceforward(world_n, -ray.d, world_n);
     si->uv = texcoords;
     float3 albedo = optixDirectCall<float3, SurfaceInteraction*, void*>(
-        data->tex_data.prg_id, si, data->tex_data.data
+        data->texture.prg_id, si, data->texture.data
     );
     si->albedo = albedo;
 
-    const float3 light_dir = normalize(params.light.pos - si->p);
-    si->shading_val = 0.8f * fmaxf(0.0f, dot(light_dir, si->n)) * albedo + 0.2f * albedo;
+    const Vec3f light_pos = Vec3f(params.light.pos);
+    const float3 light_dir = normalize(light_pos - si->p);
+    const Vec3f light_color = Vec3f(params.light.color);
+    si->shading_val = 0.8f * params.light.intensity * fmaxf(0.0f, dot(light_dir, si->n)) * (light_color * albedo) + 0.2f * albedo;
 }
 
 static __forceinline__ __device__ float2 getUV(const float3& p) {
@@ -100,7 +104,7 @@ static __forceinline__ __device__ float2 getUV(const float3& p) {
 
 extern "C" __device__ void __intersection__sphere() {
     const HitgroupData* data = reinterpret_cast<HitgroupData*>(optixGetSbtDataPointer());
-    const SphereData* sphere_data = reinterpret_cast<SphereData*>(data->shape_data);
+    const Sphere::Data* sphere_data = reinterpret_cast<Sphere::Data*>(data->shape_data);
 
     const float3 center = sphere_data->center;
     const float radius = sphere_data->radius;
@@ -135,7 +139,7 @@ extern "C" __device__ void __intersection__sphere() {
 
 extern "C" __device__ void __closesthit__sphere() {
     const HitgroupData* data = reinterpret_cast<HitgroupData*>(optixGetSbtDataPointer());
-    const SphereData* sphere_data = reinterpret_cast<SphereData*>(data->shape_data);
+    const Sphere::Data* sphere_data = reinterpret_cast<Sphere::Data*>(data->shape_data);
 
     Ray ray = getWorldRay();
 
@@ -152,9 +156,11 @@ extern "C" __device__ void __closesthit__sphere() {
     si->n = faceforward(world_n, -ray.d, world_n);
     si->uv = getUV(local_n);
     float3 albedo = optixDirectCall<float3, SurfaceInteraction*, void*>(
-        data->tex_data.prg_id, si, data->tex_data.data
+        data->texture.prg_id, si, data->texture.data
     );
     si->albedo = albedo;
-    const float3 light_dir = normalize(params.light.pos - si->p);
-    si->shading_val = 0.8f * fmaxf(0.0f, dot(light_dir, si->n)) * albedo + 0.2f * albedo;
+    const Vec3f light_pos = Vec3f(params.light.pos);
+    const float3 light_dir = normalize(light_pos - si->p);
+    const Vec3f light_color = Vec3f(params.light.color);
+    si->shading_val = 0.8f * params.light.intensity * fmaxf(0.0f, dot(light_dir, si->n)) * (light_color * albedo) + 0.2f * albedo;
 }

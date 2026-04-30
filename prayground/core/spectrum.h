@@ -1,6 +1,7 @@
 #pragma once
 
 #include <optix.h>
+#include <cmath>
 #include <vector_types.h>
 #include <prayground/math/vec.h>
 #include <prayground/optix/macros.h>
@@ -13,6 +14,11 @@
 #endif
 
 namespace prayground {
+
+#ifndef __CUDACC__
+    using std::isnan;
+    using std::isinf;
+#endif
 
     // Forward declaration
     class SampledSpectrum;
@@ -46,7 +52,13 @@ namespace prayground {
         constexpr int num_spectrum_samples = 81;
         constexpr float CIE_Y_integral = 106.911594f;
 
-        constexpr float spectrum_lambda[num_spectrum_samples] = {
+#if defined(__CUDA_ARCH__)
+#define PG_SPECTRUM_TABLE __device__ __constant__
+#else
+#define PG_SPECTRUM_TABLE constexpr
+#endif
+
+        PG_SPECTRUM_TABLE float spectrum_lambda[num_spectrum_samples] = {
             380.00f, 384.25f, 388.50f, 392.75f, 397.00f, 401.25f, 405.50f, 409.75f, 414.00f, 418.25f,
             422.50f, 426.75f, 431.00f, 435.25f, 439.50f, 443.75f, 448.00f, 452.25f, 456.50f, 460.75f,
             465.00f, 469.25f, 473.50f, 477.75f, 482.00f, 486.25f, 490.50f, 494.75f, 499.00f, 503.25f,
@@ -299,7 +311,7 @@ namespace prayground {
     // Tables to reconstruct SampledSpectrum from RGB value.
     /// @ref An RGB to Spectrum Conversion for Reflectances, Smits 2000
     namespace constants {
-        constexpr SampledSpectrum rgb2spectrum_white = {
+        PG_SPECTRUM_TABLE SampledSpectrum rgb2spectrum_white = {
             1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 0.999997f,
             0.999985f, 0.999973f, 0.999962f, 0.999952f, 0.999941f, 0.999929f, 0.999917f, 0.999907f, 0.999876f, 0.999813f,
             0.999742f, 0.999671f, 0.999607f, 0.999543f, 0.99948f, 0.999409f, 0.999337f, 0.999296f, 0.999285f, 0.999274f,
@@ -311,7 +323,7 @@ namespace prayground {
             1.0f
         };
 
-        constexpr SampledSpectrum rgb2spectrum_cyan = {
+        PG_SPECTRUM_TABLE SampledSpectrum rgb2spectrum_cyan = {
             0.969497f, 0.96649f, 0.963483f, 0.960476f, 0.957469f, 0.954086f, 0.950704f, 0.947697f, 0.94469f, 0.944651f,
             0.951399f, 0.958321f, 0.964474f, 0.970627f, 0.97678f, 0.983702f, 0.990624f, 0.996777f, 1.00064f, 1.0007f, 
             1.0007f, 1.0007f, 1.0007f, 1.0007f, 1.0007f, 1.0007f, 1.0007f, 1.0007f, 1.0007f, 1.0007f,
@@ -323,7 +335,7 @@ namespace prayground {
             0.0f
         };
 
-        constexpr SampledSpectrum rgb2spectrum_magenta = {
+        PG_SPECTRUM_TABLE SampledSpectrum rgb2spectrum_magenta = {
             1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 0.998919f,
             0.99523f, 0.991477f, 0.988141f, 0.984805f, 0.981469f, 0.977716f, 0.973963f, 0.970627f, 0.939169f, 0.860942f,
             0.772133f, 0.683325f, 0.604383f, 0.525442f, 0.446501f, 0.357692f, 0.268883f, 0.213235f, 0.189447f, 0.165847f, 
@@ -335,7 +347,7 @@ namespace prayground {
             0.996171f
         };
 
-        constexpr SampledSpectrum rgb2spectrum_yellow = {
+        PG_SPECTRUM_TABLE SampledSpectrum rgb2spectrum_yellow = {
             0.0000947062f, 0.0000841186f, 0.000073531f, 0.0000629434f, 0.0000523557f, 0.0000404447f, 0.0000285336f, 0.000017946f, 0.00000735839f, 0.0037336f, 
             0.016477f, 0.0294397f, 0.040962f, 0.0524844f, 0.0640068f, 0.0769695f, 0.0899321f, 0.101455f, 0.130599f, 0.18905f, 
             0.255311f, 0.321572f, 0.380471f, 0.43937f, 0.498269f, 0.56453f, 0.630792f, 0.679824f, 0.715362f, 0.75082f,
@@ -347,7 +359,7 @@ namespace prayground {
             0.982974f
         };
 
-        constexpr SampledSpectrum rgb2spectrum_red = {
+        PG_SPECTRUM_TABLE SampledSpectrum rgb2spectrum_red = {
             0.098569f, 0.0933069f, 0.0880449f, 0.0827828f, 0.0775208f, 0.071601f, 0.0656812f, 0.0604192f, 0.0551571f, 0.0498329f,
             0.0437007f, 0.0375649f, 0.0321108f, 0.0266567f, 0.0212027f, 0.0150668f, 0.00893101f, 0.00347695f, 0.0000515556, 0.0f,
             0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f,
@@ -359,7 +371,7 @@ namespace prayground {
             1.0149f
         }; 
 
-        constexpr SampledSpectrum rgb2spectrum_green = {
+        PG_SPECTRUM_TABLE SampledSpectrum rgb2spectrum_green = {
             0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.000936781f,
             0.00413439f, 0.00738698f, 0.0102782f, 0.0131693f, 0.0160605f, 0.0193131f, 0.0225657f, 0.0254569f, 0.0574544f, 0.137858f,
             0.229145f, 0.320431f, 0.401574f, 0.482718f, 0.563861f, 0.655148f, 0.746434f, 0.802617f, 0.824661f, 0.846504f,
@@ -371,7 +383,7 @@ namespace prayground {
             0.00233457
         }; 
 
-        constexpr SampledSpectrum rgb2spectrum_blue = {
+        PG_SPECTRUM_TABLE SampledSpectrum rgb2spectrum_blue = {
             1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 0.99628f,
             0.983584f, 0.970669f, 0.959189f, 0.947709f, 0.936229f, 0.923313f, 0.910398f, 0.898919f, 0.869683f, 0.810917f,
             0.744299f, 0.67768f, 0.618464f, 0.559247f, 0.500031f, 0.433412f, 0.366793f, 0.317693f, 0.282429f, 0.247246f,
@@ -382,6 +394,8 @@ namespace prayground {
             0.0462723f, 0.0476301f, 0.0483596f, 0.0484989f, 0.0486365f, 0.0487914f, 0.0489462f, 0.0490839f, 0.0492215f, 0.0493591f,
             0.049514
         };
+
+#undef PG_SPECTRUM_TABLE
     }
 
 #ifndef __CUDACC__

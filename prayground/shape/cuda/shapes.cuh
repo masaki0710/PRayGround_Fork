@@ -149,7 +149,7 @@ namespace prayground {
 
     /* Return a hitting axis of box face, X=0, Y=1, Z=2 */
     INLINE DEVICE bool pgIntersectionBox(
-        const Box::Data* box, const Ray& ray, Shading* shading, float* time
+        const Box::Data* box, const Ray& ray, Shading* shading, float* time, int* out_axis=nullptr
     )
     {
         const Vec3f min = box->min;
@@ -231,6 +231,7 @@ namespace prayground {
         }
 
         *time = t;
+        if (out_axis != nullptr) *out_axis = axis;
 
         return true;
     }

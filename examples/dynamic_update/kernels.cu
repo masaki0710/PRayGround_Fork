@@ -145,7 +145,8 @@ extern "C" __device__ void __closesthit__plane()
         data->texture.prg_id, si, data->texture.data);
     si->albedo = albedo;
 
-    const Vec3f light_dir = normalize(params.light.pos - si->p);
+    const Vec3f light_pos = Vec3f(params.light.pos);
+    const Vec3f light_dir = normalize(light_pos - si->p);
     si->radiance = 0.8f * fmaxf(0.0f, dot(light_dir, si->n)) * albedo + 0.2f * albedo;
 }
 
@@ -183,7 +184,8 @@ extern "C" __device__ void __closesthit__mesh()
         data->texture.prg_id, si, data->texture.data);
     si->albedo = albedo;
 
-    const Vec3f light_dir = normalize(params.light.pos - si->p);
+    const Vec3f light_pos = Vec3f(params.light.pos);
+    const Vec3f light_dir = normalize(light_pos - si->p);
     si->radiance = 0.8f * fmaxf(0.0f, dot(light_dir, si->n)) * albedo + 0.2f * albedo;
 }
 
@@ -247,7 +249,8 @@ extern "C" __device__ void __closesthit__sphere() {
     Vec3f albedo = optixDirectCall<Vec3f, SurfaceInteraction*, void*>(
         data->texture.prg_id, si, data->texture.data);
     si->albedo = albedo;
-    const Vec3f light_dir = normalize(params.light.pos - si->p);
+    const Vec3f light_pos = Vec3f(params.light.pos);
+    const Vec3f light_dir = normalize(light_pos - si->p);
     si->radiance = 0.8f * fmaxf(0.0f, dot(light_dir, si->n)) * albedo + 0.2f * albedo;
 }
 

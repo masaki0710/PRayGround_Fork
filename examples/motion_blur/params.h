@@ -12,8 +12,8 @@ using CheckerTexture = CheckerTexture_<Vec3f>;
 
 struct Light 
 {
-    Vec3f pos;
-    Vec3f color;
+    float3 pos;
+    float3 color;
     float intensity;
 };
 

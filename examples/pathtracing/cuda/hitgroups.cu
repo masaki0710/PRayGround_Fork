@@ -113,7 +113,7 @@ extern "C" DEVICE void __closesthit__custom()
     si->shading.dpdv = normalize(optixTransformVectorFromObjectToWorldSpace(si->shading.dpdv));
     si->t = ray.tmax;
     si->wo = ray.d;
-    si->surface_info = data->surface_info;
+    si->surface_info = const_cast<SurfaceInfo*>(data->surface_info);
 }
 
 
@@ -154,7 +154,7 @@ extern "C" __device__ void __closesthit__mesh()
     si->t = ray.tmax;
     si->wo = ray.d;
     si->shading.uv = texcoords;
-    si->surface_info = data->surface_info;
+    si->surface_info = const_cast<SurfaceInfo*>(data->surface_info);
 
     // Calculate partial derivative on texture coordinates
     Vec3f dpdu, dpdv;

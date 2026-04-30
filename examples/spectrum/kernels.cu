@@ -98,22 +98,22 @@ extern "C" __global__ void __raygen__spectrum()
             }
 
             // Get emission from area emitter
-            if (si.surface_info.type == SurfaceType::AreaEmitter) {
+            if (si.surface_info->type == SurfaceType::AreaEmitter) {
                 // Evaluating emission from emitter
                 optixDirectCall<void, SurfaceInteraction*, void*>(
-                    si.surface_info.callable_id.bsdf,
+                    si.surface_info->callable_id.bsdf,
                     &si, 
-                    si.surface_info.data
+                    si.surface_info->data
                 );
                 radiance += si.emission.getSpectrumFromWavelength(lambda) * throughput;
                 if (si.trace_terminate)
                     break;
             }
             // Sample scattering direction and evaluate bsdf
-            else if (+(si.surface_info.type & SurfaceType::Material)) {
+            else if (+(si.surface_info->type & SurfaceType::Material)) {
                 float pdf;
                 float bsdf = optixDirectCall<float, const float&, SurfaceInteraction*, void*, float&>(
-                    si.surface_info.callable_id.bsdf, lambda, &si, si.surface_info.data, pdf);
+                    si.surface_info->callable_id.bsdf, lambda, &si, si.surface_info->data, pdf);
                 throughput *= bsdf / pdf;
             }
 
@@ -176,7 +176,7 @@ extern "C" __device__ void __miss__envmap()
     // Record hit-point information
     si->shading.uv = Vec2f(u, v);
     si->trace_terminate = true;
-    si->surface_info.type = SurfaceType::None;
+    si->surface_info->type = SurfaceType::None;
     // Evaluate texture color for emittance
     si->emission = optixDirectCall<Spectrum, SurfaceInteraction*, void*>(
         env->texture.prg_id, si, env->texture.data
@@ -400,7 +400,7 @@ extern "C" __device__ float __direct_callable__sample_disney(const float& lambda
 
     // BSDF evaluation
     const Spectrum base_spectrum = optixDirectCall<Spectrum, SurfaceInteraction*, void*>(
-        disney->base.prg_id, si, disney->base.data);
+        disney->albedo.prg_id, si, disney->albedo.data);
     const float base = base_spectrum.getSpectrumFromWavelength(lambda);
     return disneyBRDF(disney, base_spectrum, base, 
         V, L, N, H, NdotV, NdotL, NdotH, LdotH, 
@@ -473,7 +473,7 @@ extern "C" __device__ void __closesthit__mesh()
     si->t = ray.tmax;
     si->wo = ray.d;
     si->shading.uv = texcoords;
-    si->surface_info = data->surface_info;
+    si->surface_info = const_cast<SurfaceInfo*>(&data->surface_info);
 
     Vec3f dpdu, dpdv;
     const Vec2f duv02 = texcoord0 - texcoord2;
@@ -551,7 +551,7 @@ extern "C" __device__ void __closesthit__sphere()
     si->t = ray.tmax;
     si->wo = ray.d;
     si->shading.uv = pgGetSphereUV(local_n);
-    si->surface_info = data->surface_info;
+    si->surface_info = const_cast<SurfaceInfo*>(&data->surface_info);
 
     float phi = atan2(local_n.z(), local_n.x());
     if (phi < 0) phi += 2.0f * math::pi;
@@ -663,7 +663,7 @@ extern "C" __device__ void __closesthit__plane()
     si->t = ray.tmax;
     si->wo = ray.d;
     si->shading.uv = uv;
-    si->surface_info = data->surface_info;
+    si->surface_info = const_cast<SurfaceInfo*>(&data->surface_info);
     si->shading.dpdu = optixTransformNormalFromObjectToWorldSpace({1.0f, 0.0f, 0.0f});
     si->shading.dpdv = optixTransformNormalFromObjectToWorldSpace({0.0f, 0.0f, 1.0f});
 }
