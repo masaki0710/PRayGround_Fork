@@ -139,7 +139,7 @@ void App::setup()
     ProgramGroup mesh_shadow_prg = pipeline.createHitgroupProgram(context, module, "__closesthit__shadow", "", "__anyhit__opacity");
     ProgramGroup mesh_opaque_shadow_prg = pipeline.createHitgroupProgram(context, module, "__closesthit__shadow");
 
-    ProgramGroup plane_prg = pipeline.createHitgroupProgram(context, module, "__closesthit__custom", "__intersection__plane");
+    ProgramGroup plane_prg = pipeline.createHitgroupProgram(context, module, "__closesthit__plane", "__intersection__plane");
     ProgramGroup plane_shadow_prg = pipeline.createHitgroupProgram(context, module, "__closesthit__shadow", "__intersection__plane");
     
 
@@ -167,12 +167,7 @@ void App::setup()
         record.data =
         {
             .shape_data = shape->devicePtr(),
-            .surface_info =
-            {
-                .data = is_mat ? std::get<shared_ptr<Material>>(surface)->devicePtr() : std::get<shared_ptr<AreaEmitter>>(surface)->devicePtr(),
-                .callable_id = is_mat ? std::get<shared_ptr<Material>>(surface)->surfaceCallableID() : std::get<shared_ptr<AreaEmitter>>(surface)->surfaceCallableID(),
-                .type = is_mat ? std::get<shared_ptr<Material>>(surface)->surfaceType() : SurfaceType::AreaEmitter,
-            },
+            .surface_info = is_mat ? std::get<shared_ptr<Material>>(surface)->surfaceInfoDevicePtr() : std::get<shared_ptr<AreaEmitter>>(surface)->surfaceInfoDevicePtr(),
             .opacity_texture = opacity_texture ? opacity_texture->getData() : Texture::Data{ nullptr, (int32_t)bitmap_prg_id }
         };
 
@@ -214,7 +209,7 @@ void App::setup()
         createGAS(shape, transform);
         AreaEmitterInfo area_emitter = {
             .shape = shape->devicePtr(),
-            .surface_info = *area->surfaceInfoDevicePtr(),
+            .surface_info = area->surfaceInfoDevicePtr(),
             .objToWorld = transform, 
             .worldToObj = transform.inverse()
         };

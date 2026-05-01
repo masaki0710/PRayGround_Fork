@@ -9,6 +9,15 @@
 #include <prayground/optix/omm.h>
 
 namespace prayground {
+    namespace {
+        constexpr float kOpacityCutoff = 0.0f;
+
+        INLINE DEVICE bool isTransparentAlpha(float alpha)
+        {
+            return alpha <= kOpacityCutoff;
+        }
+    }
+
     INLINE DEVICE float signedTriangleArea(Vec2f a, Vec2f b, Vec2f c) {
         return cross(b - a, c - a) / 2.0f;
     }
@@ -35,25 +44,52 @@ namespace prayground {
             fmaxf(fmaxf(bary0.y(), bary1.y()), bary2.y())
         };
 
-        // Rasterize all pixels in the bounding box of the micro triangle
-        int32_t num_pixels_in_triangle = 0;
-        int32_t num_transparent_pixels = 0;
+        auto corner_size = corner_max - corner_min;
+        int est_pixels_x = max(1, static_cast<int>(ceilf(corner_size.x() / step.x())));
+        int est_pixels_y = max(1, static_cast<int>(ceilf(corner_size.y() / step.y())));
+        int64_t est_total_pixels = static_cast<int64_t>(est_pixels_x) * est_pixels_y;
 
-        // Check transparency on the micro-triangle vertices
-        num_pixels_in_triangle += 3;
+        auto classify = [&](float alpha) -> uint8_t {
+            if (!isTransparentAlpha(alpha)) {
+                if (format == OPTIX_OPACITY_MICROMAP_FORMAT_4_STATE)
+                    return OPTIX_OPACITY_MICROMAP_STATE_UNKNOWN_OPAQUE;
+                return OPTIX_OPACITY_MICROMAP_STATE_OPAQUE;
+            }
+            return OPTIX_OPACITY_MICROMAP_STATE_TRANSPARENT;
+        };
+
         float4 c0 = tex2D<float4>(texture, bary0.x(), bary0.y());
         float4 c1 = tex2D<float4>(texture, bary1.x(), bary1.y());
         float4 c2 = tex2D<float4>(texture, bary2.x(), bary2.y());
-        num_transparent_pixels += (int)(c0.w == 0.0f);
-        num_transparent_pixels += (int)(c1.w == 0.0f);
-        num_transparent_pixels += (int)(c2.w == 0.0f);
+        uint8_t state0 = classify(c0.w);
+        if (state0 != OPTIX_OPACITY_MICROMAP_STATE_TRANSPARENT) return state0;
+        uint8_t state1 = classify(c1.w);
+        if (state1 != OPTIX_OPACITY_MICROMAP_STATE_TRANSPARENT) return state1;
+        uint8_t state2 = classify(c2.w);
+        if (state2 != OPTIX_OPACITY_MICROMAP_STATE_TRANSPARENT) return state2;
 
-        // Shift corner if the pixel step is larger than micro-triangle size
-        auto corner_size = corner_max - corner_min;
-        if (step.x() > corner_size.x())
-            corner_min.x() = (bary0.x() + bary1.x() + bary2.x()) / 3.0f;
-        if (step.y() > corner_size.y())
-            corner_min.y() = (bary0.y() + bary1.y() + bary2.y()) / 3.0f;
+        if (est_total_pixels > 64) {
+            const int SAMPLES = 4;
+            for (int iy = 0; iy < SAMPLES; ++iy) {
+                for (int ix = 0; ix < SAMPLES; ++ix) {
+                    float sx = corner_min.x() + (corner_size.x() * (ix + 0.5f) / SAMPLES);
+                    float sy = corner_min.y() + (corner_size.y() * (iy + 0.5f) / SAMPLES);
+                    Vec2f uv(sx, sy);
+                    auto area01 = signedTriangleArea(uv, bary0, bary1);
+                    auto area12 = signedTriangleArea(uv, bary1, bary2);
+                    auto area20 = signedTriangleArea(uv, bary2, bary0);
+                    if ((area01 >= 0 && area12 >= 0 && area20 >= 0) || (area01 <= 0 && area12 <= 0 && area20 <= 0)) {
+                        float4 color = tex2D<float4>(texture, sx, sy);
+                        if (!isTransparentAlpha(color.w)) {
+                            if (format == OPTIX_OPACITY_MICROMAP_FORMAT_4_STATE)
+                                return OPTIX_OPACITY_MICROMAP_STATE_UNKNOWN_OPAQUE;
+                            return OPTIX_OPACITY_MICROMAP_STATE_OPAQUE;
+                        }
+                    }
+                }
+            }
+            return OPTIX_OPACITY_MICROMAP_STATE_TRANSPARENT;
+        }
 
         for (float y = corner_min.y(); y <= corner_max.y(); y += step.y()) {
             for (float x = corner_min.x(); x <= corner_max.x(); x += step.x()) {
@@ -61,25 +97,18 @@ namespace prayground {
                 auto area01 = signedTriangleArea(uv, bary0, bary1);
                 auto area12 = signedTriangleArea(uv, bary1, bary2);
                 auto area20 = signedTriangleArea(uv, bary2, bary0);
-                // Accumulate the number of transparent pixels inside the micro triangle
                 if ((area01 >= 0 && area12 >= 0 && area20 >= 0) || (area01 <= 0 && area12 <= 0 && area20 <= 0)) {
-                    num_pixels_in_triangle++;
                     float4 color = tex2D<float4>(texture, x, y);
-                    num_transparent_pixels += (int)(color.w == 0.0f);
+                    if (!isTransparentAlpha(color.w)) {
+                        if (format == OPTIX_OPACITY_MICROMAP_FORMAT_4_STATE)
+                            return OPTIX_OPACITY_MICROMAP_STATE_UNKNOWN_OPAQUE;
+                        return OPTIX_OPACITY_MICROMAP_STATE_OPAQUE;
+                    }
                 }
             }
         }
 
-        if (num_transparent_pixels == num_pixels_in_triangle) {
-            return OPTIX_OPACITY_MICROMAP_STATE_TRANSPARENT;
-        } else if (num_transparent_pixels == 0) {
-            return OPTIX_OPACITY_MICROMAP_STATE_OPAQUE;
-        } else {
-            if (format == OPTIX_OPACITY_MICROMAP_FORMAT_4_STATE)
-                return OPTIX_OPACITY_MICROMAP_STATE_UNKNOWN_OPAQUE;
-            else
-                return OPTIX_OPACITY_MICROMAP_STATE_OPAQUE;
-        }
+        return OPTIX_OPACITY_MICROMAP_STATE_TRANSPARENT;
     }
 
     extern "C" GLOBAL void generateOpacityMap(
@@ -94,10 +123,9 @@ namespace prayground {
         const int num_micro_triangles = 1 << (subdivision_level * 2);
         size_t num_elems_per_face = max((num_micro_triangles / 32 * format), 1);
 
-        //int global_thread_id = blockIdx.x * blockDim.x + threadIdx.x;
-        int64_t x_idx = blockIdx.x * blockDim.x + threadIdx.x;
-        int64_t y_idx = blockIdx.y * blockDim.y + threadIdx.y;
-        int64_t global_thread_id = x_idx + (gridDim.x * blockDim.x * y_idx);
+        // Compute a linear global thread id across a 2D grid of blocks.
+        int64_t linear_block_idx = static_cast<int64_t>(blockIdx.x) + static_cast<int64_t>(blockIdx.y) * static_cast<int64_t>(gridDim.x);
+        int64_t global_thread_id = linear_block_idx * static_cast<int64_t>(blockDim.x) + static_cast<int64_t>(threadIdx.x);
         if (global_thread_id >= num_micro_triangles * num_faces)
             return;
 
@@ -118,7 +146,8 @@ namespace prayground {
         uint8_t state = evaluateTransparencyInSingleMicroTriangle(format, uv0, uv1, uv2, bc, tex_size, texture);
         int64_t index = global_thread_id / num_states_per_elem;
         uint32_t* address = &d_out_omm_data[index];
-        atomicOr(address, state << (micro_tri_idx % num_states_per_elem * format));
+        const uint32_t shift = static_cast<uint32_t>((micro_tri_idx % num_states_per_elem) * format);
+        atomicOr(address, static_cast<uint32_t>(state) << shift);
     }
 
     extern "C" HOST void evaluateSingleOpacityTexture(
@@ -130,19 +159,23 @@ namespace prayground {
         const Vec2f* d_texcoords, const Vec3i* d_faces,
         cudaTextureObject_t texture
     ) {
-        constexpr int NUM_MAX_THREADS = 1024;
-        constexpr int NUM_MAX_BLOCKS = 65536;
+        // Configure a safe launch: use a conservative threads-per-block and compute
+        // a 2D grid that fits within CUDA limits.
+        constexpr int NUM_MAX_THREADS = 256;
+        // Max blocks per dimension (older GPUs have 65535). Use 65535 to be safe.
+        constexpr int NUM_MAX_BLOCKS = 65535;
 
         const int num_micro_triangles = 1 << (subdivision_level * 2);
-        // Count the number of opacity states packed in single uint32_t element
-        const int num_thread = min(num_micro_triangles, NUM_MAX_THREADS);
-        dim3 threads_per_block(num_thread, 1);
-        
-        const int total_blocks = (num_micro_triangles / num_thread + 1) * num_faces;
-        int block_size_x = min(total_blocks, NUM_MAX_BLOCKS);
-        int block_size_y = max(total_blocks / NUM_MAX_BLOCKS, 1);
-        dim3 block_dim(block_size_x, block_size_y, 1);
+        const int threads_per_block = min(num_micro_triangles, NUM_MAX_THREADS);
+        dim3 threads(threads_per_block, 1, 1);
 
-        generateOpacityMap<<<block_dim, threads_per_block>>>(d_out_omm_data, subdivision_level, num_faces, format, tex_size, d_texcoords, d_faces, texture);
+        const int64_t total_threads = static_cast<int64_t>(num_micro_triangles) * static_cast<int64_t>(num_faces);
+        const int64_t total_blocks = (total_threads + threads_per_block - 1) / threads_per_block;
+
+        int block_size_x = static_cast<int>(min<int64_t>(total_blocks, NUM_MAX_BLOCKS));
+        int block_size_y = static_cast<int>((total_blocks + block_size_x - 1) / block_size_x);
+        dim3 grid(block_size_x, block_size_y, 1);
+
+        generateOpacityMap<<<grid, threads>>>(d_out_omm_data, subdivision_level, num_faces, format, tex_size, d_texcoords, d_faces, texture);
     }
 }

@@ -5,6 +5,19 @@
 #include <prayground/core/cudabuffer.h>
 
 namespace prayground {
+    namespace {
+        constexpr float kOpacityCutoff = 0.0f;
+
+        template <typename PixelT>
+        inline bool isTransparentPixelAlpha(PixelT alpha)
+        {
+            if constexpr (std::is_same_v<PixelT, unsigned char>)
+                return static_cast<float>(alpha) <= (kOpacityCutoff * 255.0f);
+            else
+                return static_cast<float>(alpha) <= kOpacityCutoff;
+        }
+    }
+
     // ------------------------------------------------------------------
     OpacityMicromap::OpacityMicromap()
         : m_buffers{{}}
@@ -353,37 +366,24 @@ namespace prayground {
             return cross(b - a, c - a);
         };
 
-        // Accmulate transparency inside micro-triangle by scanning all pixels inside bounding box that just covers the triangle
-        int32_t num_pixels_in_triangle = 0;
-        int32_t num_transparent_pixels = 0;
         for (int32_t x = corner_min.x(); x <= corner_max.x(); x++) {
             for (int32_t y = corner_min.y(); y <= corner_max.y(); y++) {
                 Vec2i p(x, y);
-                // The pixel on/inside the micro triangle
                 auto area01 = calcArea(p, p0, p1);
                 auto area12 = calcArea(p, p1, p2);
                 auto area20 = calcArea(p, p2, p0);
-                // Accumerate the number of transparent pixels inside the micro triangle
                 if ((area01 >= 0 && area12 >= 0 && area20 >= 0) || (area01 <= 0 && area12 <= 0 && area20 <= 0)) {
                     Pixel color = bitmap->eval(p);
-                    num_pixels_in_triangle++;
-                    if (color.w() == 0)
-                        num_transparent_pixels++;
+                    if (!isTransparentPixelAlpha(color.w())) {
+                        if (format == OPTIX_OPACITY_MICROMAP_FORMAT_4_STATE)
+                            return OPTIX_OPACITY_MICROMAP_STATE_UNKNOWN_OPAQUE;
+                        return OPTIX_OPACITY_MICROMAP_STATE_OPAQUE;
+                    }
                 }
             }
         }
 
-        if (num_transparent_pixels == num_pixels_in_triangle)
-            return OPTIX_OPACITY_MICROMAP_STATE_TRANSPARENT;
-        else if (num_transparent_pixels == 0)
-            return OPTIX_OPACITY_MICROMAP_STATE_OPAQUE;
-        else
-        {
-            if (format == OPTIX_OPACITY_MICROMAP_FORMAT_4_STATE)
-                return OPTIX_OPACITY_MICROMAP_STATE_UNKNOWN_OPAQUE;
-            else // Treat micro triangle as opaque when the state is controlled with 1 bit (0 or 1)
-                return OPTIX_OPACITY_MICROMAP_STATE_OPAQUE;
-        }
+        return OPTIX_OPACITY_MICROMAP_STATE_TRANSPARENT;
     }
 
     // ------------------------------------------------------------------

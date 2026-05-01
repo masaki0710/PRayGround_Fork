@@ -13,7 +13,7 @@ using CheckerTexture = CheckerTexture_<Vec4f>;
 struct AreaEmitterInfo
 {
     void* shape;
-    SurfaceInfo surface_info;
+    const SurfaceInfo* surface_info;
 
     Matrix4f objToWorld;
     Matrix4f worldToObj;
@@ -40,7 +40,7 @@ struct RaygenData {
 
 struct HitgroupData {
     void* shape_data;
-    SurfaceInfo surface_info;
+    const SurfaceInfo* surface_info;
     Texture::Data opacity_texture;
 };
 

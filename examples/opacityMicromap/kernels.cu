@@ -113,7 +113,7 @@ extern "C" GLOBAL void __raygen__pinhole()
                         light_si.shading.uv = li.uv;
                         light_si.shading.n = li.n;
                         light_si.wo = unit_wi;
-                        light_si.surface_info = const_cast<SurfaceInfo*>(&light.surface_info);
+                        light_si.surface_info = const_cast<SurfaceInfo*>(light.surface_info);
 
                         Vec3f emission = optixDirectCall<Vec4f, SurfaceInteraction*, void*>(light_si.surface_info->callable_id.bsdf, &light_si, light_si.surface_info->data);
 
@@ -164,7 +164,7 @@ extern "C" GLOBAL void __raygen__pinhole()
 }
 
 // miss
-extern "C" DEVICE void __miss__envmap()
+extern "C" GLOBAL void __miss__envmap()
 {
     MissData* data = reinterpret_cast<MissData*>(optixGetSbtDataPointer());
     auto* env = reinterpret_cast<EnvironmentEmitter::Data*>(data->env_data);
@@ -184,31 +184,118 @@ extern "C" DEVICE void __miss__envmap()
         env->texture.prg_id, si->shading.uv, env->texture.data);
 }
 
-extern "C" DEVICE void __miss__shadow()
+extern "C" GLOBAL void __miss__shadow()
 {
     setPayload<0>(0);
 }
 
 // Hitgroups 
-extern "C" DEVICE void __intersection__box()
+extern "C" GLOBAL void __intersection__box()
 {
-    pgHitgroupData* data = reinterpret_cast<pgHitgroupData*>(optixGetSbtDataPointer());
+    HitgroupData* data = reinterpret_cast<HitgroupData*>(optixGetSbtDataPointer());
     auto* box = reinterpret_cast<Box::Data*>(data->shape_data);
     Ray ray = getLocalRay();
-    pgReportIntersectionBox(box, ray);
+
+    Shading shading;
+    float t;
+    int axis;
+    if (pgIntersectionBox(box, ray, &shading, &t, &axis)) {
+        optixReportIntersection(t, 0, Vec3f_as_ints(shading.n), Vec2f_as_ints(shading.uv), axis);
+    }
 }
 
-extern "C" DEVICE void __intersection__plane()
+extern "C" GLOBAL void __intersection__plane()
 {
-    pgHitgroupData* data = reinterpret_cast<pgHitgroupData*>(optixGetSbtDataPointer());
+    HitgroupData* data = reinterpret_cast<HitgroupData*>(optixGetSbtDataPointer());
     auto* plane = reinterpret_cast<Plane::Data*>(data->shape_data);
     Ray ray = getLocalRay();
-    pgReportIntersectionPlane(plane, ray);
+    Shading shading;
+    float t;
+    if (pgIntersectionPlane(plane, ray, &shading, &t)) {
+        optixReportIntersection(t, 0, Vec3f_as_ints(shading.n), Vec2f_as_ints(shading.uv));
+    }
 }
 
-extern "C" DEVICE void __closesthit__custom()
+extern "C" GLOBAL void __closesthit__box()
 {
     pgHitgroupData* data = reinterpret_cast<pgHitgroupData*>(optixGetSbtDataPointer());
+
+    Ray ray = getWorldRay();
+
+    // Unpack attributes from intersection shader
+    Vec3f n = getVec3fFromAttribute<0>();
+    Vec2f uv = getVec2fFromAttribute<3>();
+    uint32_t axis = getAttribute<5>();
+
+    // Compute dpdu/dpdv based on which face was hit
+    Vec3f dpdu, dpdv;
+    if (axis == 0)  // X face
+    {
+        dpdu = Vec3f(0.0f, 0.0f, 1.0f);
+        dpdv = Vec3f(0.0f, 1.0f, 0.0f);
+    }
+    else if (axis == 1)  // Y face
+    {
+        dpdu = Vec3f(1.0f, 0.0f, 0.0f);
+        dpdv = Vec3f(0.0f, 0.0f, 1.0f);
+    }
+    else  // Z face (axis == 2)
+    {
+        dpdu = Vec3f(1.0f, 0.0f, 0.0f);
+        dpdv = Vec3f(0.0f, 1.0f, 0.0f);
+    }
+
+    // Transform shading frame to world space
+    n = optixTransformNormalFromObjectToWorldSpace(n);
+    dpdu = optixTransformVectorFromObjectToWorldSpace(dpdu);
+    dpdv = optixTransformVectorFromObjectToWorldSpace(dpdv);
+
+    SurfaceInteraction* si = getPtrFromTwoPayloads<SurfaceInteraction, 0>();
+
+    si->p = ray.at(ray.tmax);
+    si->shading.n = n;
+    si->shading.uv = uv;
+    si->shading.dpdu = dpdu;
+    si->shading.dpdv = dpdv;
+    si->t = ray.tmax;
+    si->wo = -ray.d;
+    si->surface_info = const_cast<SurfaceInfo*>(data->surface_info);
+}
+
+extern "C" GLOBAL void __closesthit__plane()
+{
+    HitgroupData* data = reinterpret_cast<HitgroupData*>(optixGetSbtDataPointer());
+
+    Ray ray = getWorldRay();
+
+    // Unpack attributes from intersection shader
+    Vec3f n = getVec3fFromAttribute<0>();
+    Vec2f uv = getVec2fFromAttribute<3>();
+
+    // Plane has fixed dpdu/dpdv in object space
+    Vec3f dpdu = Vec3f(1, 0, 0);
+    Vec3f dpdv = Vec3f(0, 0, 1);
+
+    // Transform shading frame to world space
+    n = optixTransformNormalFromObjectToWorldSpace(n);
+    dpdu = optixTransformVectorFromObjectToWorldSpace(dpdu);
+    dpdv = optixTransformVectorFromObjectToWorldSpace(dpdv);
+
+    SurfaceInteraction* si = getPtrFromTwoPayloads<SurfaceInteraction, 0>();
+
+    si->p = ray.at(ray.tmax);
+    si->shading.n = n;
+    si->shading.uv = uv;
+    si->shading.dpdu = dpdu;
+    si->shading.dpdv = dpdv;
+    si->t = ray.tmax;
+    si->wo = -ray.d;
+    si->surface_info = const_cast<SurfaceInfo*>(data->surface_info);
+}
+
+extern "C" GLOBAL void __closesthit__custom()
+{
+    HitgroupData* data = reinterpret_cast<HitgroupData*>(optixGetSbtDataPointer());
 
     Ray ray = getWorldRay();
 
@@ -231,7 +318,7 @@ extern "C" DEVICE void __closesthit__custom()
 }
 
 // Mesh
-extern "C" DEVICE void __closesthit__mesh()
+extern "C" GLOBAL void __closesthit__mesh()
 {
     HitgroupData* data = (HitgroupData*)optixGetSbtDataPointer();
     const TriangleMesh::Data* mesh = reinterpret_cast<TriangleMesh::Data*>(data->shape_data);
@@ -250,14 +337,16 @@ extern "C" DEVICE void __closesthit__mesh()
     si->p = ray.at(ray.tmax);
     si->shading = shading;
     si->t = ray.tmax;
-    si->wo = ray.d;
-    si->surface_info = const_cast<SurfaceInfo*>(&data->surface_info);
+    si->wo = -ray.d;
+    si->surface_info = const_cast<SurfaceInfo*>(data->surface_info);
 }
 
-extern "C" DEVICE void __anyhit__opacity()
+extern "C" GLOBAL void __anyhit__opacity()
 {
     HitgroupData* data = (HitgroupData*)optixGetSbtDataPointer();
     if (!data->opacity_texture.data) return;
+
+    constexpr float kOpacityCutoff = 0.5f;
 
     const TriangleMesh::Data* mesh = reinterpret_cast<TriangleMesh::Data*>(data->shape_data);
 
@@ -278,12 +367,12 @@ extern "C" DEVICE void __anyhit__opacity()
     const Vec2f texcoord = barycentricInterop(texcoord0, texcoord1, texcoord2, bc);
 
     const Vec4f opacity = optixDirectCall<Vec4f, const Vec2f&, void*>(data->opacity_texture.prg_id, texcoord, data->opacity_texture.data);
-    if (opacity.w() == 0) {
+    if (opacity.w() < kOpacityCutoff) {
        optixIgnoreIntersection();
     }
 }
 
-extern "C" DEVICE void __closesthit__shadow()
+extern "C" GLOBAL void __closesthit__shadow()
 {
     // Hit to surface
     setPayload<0>(1);

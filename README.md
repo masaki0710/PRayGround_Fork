@@ -181,7 +181,6 @@ Scene rendered with curved mesh
 
 ## [Opacity micromap](examples/opacityMicromap/)
 > :warning: This feature is supported after OptiX 7.6
-> :warning: This example is under development and it might cause some issues.
 
 Example to build opacity micromap from texture with alpha value
 
