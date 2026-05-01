@@ -210,7 +210,7 @@ extern "C" __device__ void __closesthit__mesh()
     si->t = ray.tmax;
     si->wo = ray.d;
     si->shading.uv = texcoords;
-    si->surface_info = const_cast<SurfaceInfo*>(data->surface_info);
+    si->surface_info = &data->surface_info;
 }
 
 // Surface functions ------------------------------------------------------------------------------------------

@@ -119,7 +119,7 @@ extern "C" GLOBAL void __closesthit__box()
     si->t = ray.tmax;
     si->wo = -ray.d;
     si->shading.uv = uv;
-    si->surface_info = const_cast<SurfaceInfo*>(data->surface_info);
+    si->surface_info = data->surface_info;
 
     Vec3f dpdu, dpdv;
     // x
@@ -270,7 +270,7 @@ extern "C" GLOBAL void __closesthit__cylinder()
     si->t = ray.tmax;
     si->wo = -ray.d;
     si->shading.uv = uv;
-    si->surface_info = const_cast<SurfaceInfo*>(data->surface_info);
+    si->surface_info = data->surface_info;
 
     // dpdu and dpdv are calculated in intersection shader
     si->shading.dpdu = normalize(optixTransformVectorFromObjectToWorldSpace(si->shading.dpdu));
@@ -340,7 +340,7 @@ extern "C" GLOBAL void __closesthit__plane()
     si->t = ray.tmax;
     si->wo = -ray.d;
     si->shading.uv = uv;
-    si->surface_info = const_cast<SurfaceInfo*>(data->surface_info);
+    si->surface_info = data->surface_info;
     si->shading.dpdu = optixTransformNormalFromObjectToWorldSpace(Vec3f(1.0f, 0.0f, 0.0f));
     si->shading.dpdv = optixTransformNormalFromObjectToWorldSpace(Vec3f(0.0f, 0.0f, 1.0f));
 }
@@ -470,7 +470,7 @@ extern "C" GLOBAL void __closesthit__sphere() {
     si->t = ray.tmax;
     si->wo = -ray.d;
     si->shading.uv = uv;
-    si->surface_info = const_cast<SurfaceInfo*>(data->surface_info);
+    si->surface_info = data->surface_info;
 
     // Calculate partial derivative on texture coordinates
     float phi = atan2(local_n.z(), local_n.x());
@@ -551,7 +551,7 @@ extern "C" GLOBAL void __closesthit__mesh()
     si->t = ray.tmax;
     si->wo = -ray.d;
     si->shading.uv = texcoords;
-    si->surface_info = const_cast<SurfaceInfo*>(data->surface_info);
+    si->surface_info = data->surface_info;
 
     // Calculate partial derivative on texture coordinates
     Vec3f dpdu, dpdv;

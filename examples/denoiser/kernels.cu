@@ -416,7 +416,7 @@ extern "C" __device__ void __closesthit__plane()
     si->t = ray.tmax;
     si->wo = -ray.d;
     si->shading.uv = uv;
-    si->surface_info = const_cast<SurfaceInfo*>(data->surface_info);
+    si->surface_info = data->surface_info;
 
     si->shading.dpdu = optixTransformNormalFromObjectToWorldSpace(Vec3f(1, 0, 0));
     si->shading.dpdv = optixTransformNormalFromObjectToWorldSpace(Vec3f(0, 0, 1));
@@ -544,7 +544,7 @@ extern "C" __device__ void __closesthit__sphere() {
     si->t = ray.tmax;
     si->wo = -ray.d;
     si->shading.uv = pgGetSphereUV(local_n);
-    si->surface_info = const_cast<SurfaceInfo*>(data->surface_info);
+    si->surface_info = data->surface_info;
 
     float phi = atan2(local_n.z(), local_n.x());
     if (phi < 0) phi += 2.0f * math::pi;
@@ -685,7 +685,7 @@ extern "C" __device__ void __closesthit__cylinder()
     si->t = ray.tmax;
     si->wo = -ray.d;
     si->shading.uv = uv;
-    si->surface_info = const_cast<SurfaceInfo*>(data->surface_info);
+    si->surface_info = data->surface_info;
 
     // dpdu and dpdv are calculated in intersection shader
     si->shading.dpdu = normalize(optixTransformVectorFromObjectToWorldSpace(si->shading.dpdu));
@@ -712,6 +712,6 @@ extern "C" __device__ void __closesthit__mesh()
     si->shading = shading;
     si->t = ray.tmax;
     si->wo = -ray.d;
-    si->surface_info = const_cast<SurfaceInfo*>(data->surface_info);
+    si->surface_info = data->surface_info;
 }
 

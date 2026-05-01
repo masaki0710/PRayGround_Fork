@@ -113,7 +113,7 @@ extern "C" GLOBAL void __raygen__pinhole()
                         light_si.shading.uv = li.uv;
                         light_si.shading.n = li.n;
                         light_si.wo = unit_wi;
-                        light_si.surface_info = const_cast<SurfaceInfo*>(light.surface_info);
+                        light_si.surface_info = light.surface_info;
 
                         Vec3f emission = optixDirectCall<Vec4f, SurfaceInteraction*, void*>(light_si.surface_info->callable_id.bsdf, &light_si, light_si.surface_info->data);
 
@@ -259,7 +259,7 @@ extern "C" GLOBAL void __closesthit__box()
     si->shading.dpdv = dpdv;
     si->t = ray.tmax;
     si->wo = -ray.d;
-    si->surface_info = const_cast<SurfaceInfo*>(data->surface_info);
+    si->surface_info = data->surface_info;
 }
 
 extern "C" GLOBAL void __closesthit__plane()
@@ -290,7 +290,7 @@ extern "C" GLOBAL void __closesthit__plane()
     si->shading.dpdv = dpdv;
     si->t = ray.tmax;
     si->wo = -ray.d;
-    si->surface_info = const_cast<SurfaceInfo*>(data->surface_info);
+    si->surface_info = data->surface_info;
 }
 
 extern "C" GLOBAL void __closesthit__custom()
@@ -314,7 +314,7 @@ extern "C" GLOBAL void __closesthit__custom()
     si->shading = *shading;
     si->t = ray.tmax;
     si->wo = ray.d;
-    si->surface_info = const_cast<SurfaceInfo*>(data->surface_info);
+    si->surface_info = data->surface_info;
 }
 
 // Mesh
@@ -338,7 +338,7 @@ extern "C" GLOBAL void __closesthit__mesh()
     si->shading = shading;
     si->t = ray.tmax;
     si->wo = -ray.d;
-    si->surface_info = const_cast<SurfaceInfo*>(data->surface_info);
+    si->surface_info = data->surface_info;
 }
 
 extern "C" GLOBAL void __anyhit__opacity()

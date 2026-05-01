@@ -264,7 +264,7 @@ extern "C" __global__ void __closesthit__box()
     si->shading.dpdv = dpdv;
     si->t = ray.tmax;
     si->wo = -ray.d;
-    si->surface_info = const_cast<SurfaceInfo*>(data->surface_info);
+    si->surface_info = data->surface_info;
 }
 
 extern "C" __global__ void __closesthit__plane()
@@ -295,7 +295,7 @@ extern "C" __global__ void __closesthit__plane()
     si->shading.dpdv = dpdv;
     si->t = ray.tmax;
     si->wo = -ray.d;
-    si->surface_info = const_cast<SurfaceInfo*>(data->surface_info);
+    si->surface_info = data->surface_info;
 }
 
 extern "C" __global__ void __closesthit__sphere()
@@ -333,7 +333,7 @@ extern "C" __global__ void __closesthit__sphere()
     si->shading.dpdv = dpdv;
     si->t = ray.tmax;
     si->wo = -ray.d;
-    si->surface_info = const_cast<SurfaceInfo*>(data->surface_info);
+    si->surface_info = data->surface_info;
 }
 
 extern "C" __global__ void __closesthit__mesh()
@@ -355,7 +355,7 @@ extern "C" __global__ void __closesthit__mesh()
     si->shading = shading;
     si->t = ray.tmax;
     si->wo = -ray.d;
-    si->surface_info = const_cast<SurfaceInfo*>(data->surface_info);
+    si->surface_info = data->surface_info;
 }
 
 extern "C" __global__ void __closesthit__curves()
@@ -379,7 +379,7 @@ extern "C" __global__ void __closesthit__curves()
     si->shading = shading;
     si->t = ray.tmax;
     si->wo = -ray.d;
-    si->surface_info = const_cast<SurfaceInfo*>(data->surface_info);
+    si->surface_info = data->surface_info;
 }
 
 extern "C" __global__ void __closesthit__shadow()
